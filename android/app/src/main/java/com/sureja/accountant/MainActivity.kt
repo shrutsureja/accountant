@@ -76,7 +76,7 @@ private fun MainActivity.MainShell(session:SessionViewModel) {
         }
     }) { contentPadding ->
         NavHost(nav, "home", Modifier.padding(contentPadding)) {
-            composable("home") { HomeScreen({ nav.navigate("add") }, { nav.navigate("review") }) }
+            composable("home") { HomeScreen({ nav.navigate("add") }, { nav.navigate("review") }, { nav.navigate("transactions") }, { nav.navigate("reports") }) }
             composable("transactions") { TransactionsScreen() }
             composable("add") { AddExpenseScreen(onSaved = { nav.navigate("transactions") { popUpTo("add") { inclusive = true } } }) }
             composable("reports") { ReportsScreen() }

@@ -31,44 +31,7 @@ import java.util.Locale
 
 @Composable fun LockedScreen(onUnlock:()->Unit,onUsePin:()->Unit) { Box(Modifier.fillMaxSize().padding(24.dp),contentAlignment=Alignment.Center){Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(14.dp)){Icon(Icons.Default.Fingerprint,null,Modifier.size(64.dp),tint=MaterialTheme.colorScheme.primary);Text("Accountant",style=MaterialTheme.typography.headlineMedium);Button(onUnlock){Text("Unlock with fingerprint")};TextButton(onUsePin){Text("Use account PIN")}}} }
 
-@Composable fun HomeScreen(onAdd:()->Unit,onReview:()->Unit,viewModel:HomeViewModel=hiltViewModel()) {
-    val state by viewModel.state.collectAsState()
-    val month by viewModel.selectedMonth.collectAsState()
-    val previousMonth = YearMonth.now().minusMonths(1)
-    LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(18.dp)) {
-        item {
-            Text("Good ${greeting()}",color=MaterialTheme.colorScheme.onSurfaceVariant)
-            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
-                IconButton({viewModel.previousMonth()}) { Icon(Icons.Default.ChevronLeft,"Previous month") }
-                Box(Modifier.weight(1f),contentAlignment=Alignment.Center) {
-                    Text("${month.month.getDisplayName(TextStyle.FULL,Locale.getDefault())} ${month.year} spending",style=MaterialTheme.typography.titleMedium)
-                }
-                IconButton({viewModel.nextMonth()},enabled=month<YearMonth.now()) { Icon(Icons.Default.ChevronRight,"Next month") }
-            }
-            AmountText(state.total,Modifier.padding(top=4.dp),34)
-        }
-        if(month==YearMonth.now()) item {
-            Card(onClick={viewModel.showPreviousMonth()}) {
-                Row(Modifier.fillMaxWidth().padding(16.dp),verticalAlignment=Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("${previousMonth.month.getDisplayName(TextStyle.FULL,Locale.getDefault())} spending",style=MaterialTheme.typography.titleMedium)
-                        AmountText(state.previousTotal,Modifier.padding(top=4.dp),24)
-                        Text("Tap to see household and category details.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    Icon(Icons.Default.ChevronRight,null)
-                }
-            }
-        }
-        if(state.reviewCount>0)item{Card(onClick=onReview,colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.secondaryContainer)){Row(Modifier.fillMaxWidth().padding(16.dp),verticalAlignment=Alignment.CenterVertically){Icon(Icons.Default.NotificationsActive,null);Column(Modifier.weight(1f).padding(horizontal=12.dp)){Text("Needs review",fontWeight=androidx.compose.ui.text.font.FontWeight.SemiBold);Text("${state.reviewCount} detected transaction${if(state.reviewCount==1)"" else "s"}")};Icon(Icons.Default.ChevronRight,null)}}}
-        item{Button(onAdd,Modifier.fillMaxWidth().height(52.dp)){Icon(Icons.Default.Add,null);Spacer(Modifier.width(8.dp));Text("Add expense")}}
-        item{SectionTitle("Household")}
-        items(state.people){SummaryRow(it.name,it.amountPaise,state.total)}
-        item{HorizontalDivider();SectionTitle("Top categories")}
-        if(state.categories.isEmpty())item{EmptyState("No expenses yet","Add your first expense to see the household summary.","Add expense",onAdd)}else items(state.categories){SummaryRow(it.name,it.amountPaise,state.total)}
-    }
-}
 @Composable private fun SummaryRow(name:String,amount:Long,total:Long){Column(Modifier.fillMaxWidth().padding(vertical=5.dp)){Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text(name);Text(money(amount),fontWeight=androidx.compose.ui.text.font.FontWeight.Medium)};LinearProgressIndicator(if(total==0L)0f else amount.toFloat()/total,Modifier.fillMaxWidth().padding(top=7.dp).height(4.dp))}}
-private fun greeting()=when(java.time.LocalTime.now().hour){in 5..11->"morning";in 12..16->"afternoon";else->"evening"}
 
 
 @Composable private fun <T>SelectField(label:String,items:List<T>,selected:String?,onSelected:(String)->Unit,name:(T)->String,id:(T)->String,optional:Boolean=false){var expanded by remember{mutableStateOf(false)};ExposedDropdownMenuBox(expanded,{expanded=it}){OutlinedTextField(items.firstOrNull{id(it)==selected}?.let(name)?:if(optional)"None" else "Select",{},Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),readOnly=true,label={Text(label)},trailingIcon={ExposedDropdownMenuDefaults.TrailingIcon(expanded)});ExposedDropdownMenu(expanded,{expanded=false}){if(optional)DropdownMenuItem({Text("None")},{onSelected("");expanded=false});items.forEach{item->DropdownMenuItem({Text(name(item))},{onSelected(id(item));expanded=false})}}}}

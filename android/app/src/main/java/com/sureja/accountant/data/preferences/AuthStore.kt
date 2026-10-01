@@ -23,6 +23,7 @@ class AuthStore @Inject constructor(@ApplicationContext private val context: Con
     }
     val hasSession: Flow<Boolean> = context.dataStore.data.map { it[Keys.refresh] != null }
     val userId: Flow<String?> = context.dataStore.data.map { it[Keys.userId] }
+    val username: Flow<String?> = context.dataStore.data.map { it[Keys.username] }
     val displayName: Flow<String> = context.dataStore.data.map { it[Keys.displayName].orEmpty() }
     val biometricEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.biometric] ?: true }
     val lastPaymentMethod: Flow<String> = context.dataStore.data.map { it[Keys.lastPayment] ?: "CASH" }

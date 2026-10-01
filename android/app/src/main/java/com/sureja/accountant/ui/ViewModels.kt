@@ -28,13 +28,20 @@ import javax.inject.Inject
 }
 sealed interface LoginState { data object Idle:LoginState; data object Loading:LoginState; data object Success:LoginState; data class Error(val message:String):LoginState }
 
-data class HomeState(val total:Long=0,val previousTotal:Long=0,val reviewCount:Int=0,val people:List<NamedAmount> = emptyList(),val categories:List<NamedAmount> = emptyList())
-@HiltViewModel class HomeViewModel @Inject constructor(repository: AccountantRepository): ViewModel() {
+data class HomeState(val total:Long=0,val previousTotal:Long=0,val reviewCount:Int=0,val people:List<NamedAmount> = emptyList(),val categories:List<NamedAmount> = emptyList(),val recent:List<TransactionListItem> = emptyList(),val todayTotal:Long=0,val weekTotal:Long=0)
+@HiltViewModel class HomeViewModel @Inject constructor(repository: AccountantRepository,store:AuthStore): ViewModel() {
     val selectedMonth = MutableStateFlow(YearMonth.now())
-    private val previousMonth = MonthRange.forMonth(YearMonth.now().minusMonths(1))
+    val mode=store.username.map(UiModeResolver::defaultFor).stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),UiMode.SIMPLE)
+    val profileName=combine(store.userId,store.displayName,repository.members()) { userId,savedName,members -> members.firstOrNull { it.id==userId }?.displayName ?: savedName }.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),"")
+    private val today=LocalDate.now()
+    private val todayRange=MonthRange(today.atStartOfDay(ZoneId.systemDefault()).toOffsetDateTime().toString(),today.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toOffsetDateTime().toString())
+    private val weekStart=today.minusDays((today.dayOfWeek.value-1).toLong())
+    private val weekRange=MonthRange(weekStart.atStartOfDay(ZoneId.systemDefault()).toOffsetDateTime().toString(),weekStart.plusDays(7).atStartOfDay(ZoneId.systemDefault()).toOffsetDateTime().toString())
     val state=selectedMonth.flatMapLatest { month ->
         val range=MonthRange.forMonth(month)
-        combine(repository.total(range),repository.total(previousMonth),repository.reviewCount(),repository.memberTotals(range),repository.categoryTotals(range)) { total,previous,review,people,categories -> HomeState(total,previous,review,people,categories.take(5)) }
+        val previousMonth=MonthRange.forMonth(month.minusMonths(1))
+        val base=combine(repository.total(range),repository.total(previousMonth),repository.reviewCount(),repository.memberTotals(range),repository.categoryTotals(range)) { total,previous,review,people,categories -> HomeState(total,previous,review,people,categories.take(5)) }
+        combine(base,repository.transactions(),repository.total(todayRange),repository.total(weekRange)) { summary,recent,todayAmount,weekAmount -> summary.copy(recent=recent.take(5),todayTotal=todayAmount,weekTotal=weekAmount) }
     }.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),HomeState())
     fun previousMonth(){selectedMonth.value=selectedMonth.value.minusMonths(1)}
     fun nextMonth(){if(selectedMonth.value<YearMonth.now())selectedMonth.value=selectedMonth.value.plusMonths(1)}

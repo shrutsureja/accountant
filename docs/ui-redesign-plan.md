@@ -23,4 +23,4 @@ After each phase, review the changed files, verify the Android build and tests, 
 
 ## Progress
 
-- Phase 1: blue-neutral theme, typography, shape/spacing tokens, shared basic components, and five-item navigation implemented. Android unit tests and debug build passed locally. On-device visual confirmation is pending because the Redmi disconnected from ADB during this phase.
+- Phase 1: blue-neutral theme, typography, shape/spacing tokens, shared basic components, and five-item navigation implemented. Android unit tests and debug build passed locally; the backend and Android CI jobs also passed. On-device visual confirmation is pending because the Redmi disconnected from ADB during this phase.

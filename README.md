@@ -49,6 +49,27 @@ The UI reads exclusively from Room. Manual expenses are committed locally first 
 
 The debug APK is produced at `android/app/build/outputs/apk/debug/app-debug.apk`.
 
+### Local backend on a USB-connected phone
+
+The phone debug build uses `http://127.0.0.1:8787/` only when built with that `API_BASE_URL`. On a phone, this address reaches the phone itself unless ADB forwards it to the computer. Keep the Worker running in one terminal:
+
+```bash
+cd backend
+npm run dev -- --ip 127.0.0.1 --port 8787
+```
+
+With the unlocked phone connected and authorized for USB debugging, run in another terminal:
+
+```bash
+adb devices
+adb reverse tcp:8787 tcp:8787
+cd android
+./gradlew assembleDebug -PAPI_BASE_URL=http://127.0.0.1:8787/
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+Check `http://127.0.0.1:8787/health` on the computer first. ADB reverse forwarding disappears when the phone disconnects; reconnect it and run `adb reverse tcp:8787 tcp:8787` again. If the Worker stops, restart it. The emulator uses the default `10.0.2.2` address instead and does not need USB forwarding.
+
 ## UI redesign
 
 The [phased UI redesign plan](docs/ui-redesign-plan.md) and [visual reference](docs/design/accountant-ui-reference.png) are checked in for review. The redesign keeps the existing Compose navigation, ViewModels, Room data flow, and backend contracts. It starts with a blue-neutral theme and shared components, then proceeds through Add Expense, simple/detailed Home, Transactions, Needs Review, Reports, and Profile/Categories. Each phase is built and tested before the next begins.

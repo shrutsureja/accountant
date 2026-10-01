@@ -22,6 +22,7 @@ class AuthStore @Inject constructor(@ApplicationContext private val context: Con
         val lastSync = stringPreferencesKey("last_sync_at"); val biometric = booleanPreferencesKey("biometric_enabled"); val lastPayment = stringPreferencesKey("last_payment")
     }
     val hasSession: Flow<Boolean> = context.dataStore.data.map { it[Keys.refresh] != null }
+    val userId: Flow<String?> = context.dataStore.data.map { it[Keys.userId] }
     val displayName: Flow<String> = context.dataStore.data.map { it[Keys.displayName].orEmpty() }
     val biometricEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.biometric] ?: true }
 
@@ -41,4 +42,3 @@ class AuthStore @Inject constructor(@ApplicationContext private val context: Con
     suspend fun lastPayment(): String = context.dataStore.data.first()[Keys.lastPayment] ?: "CASH"
     suspend fun setLastPayment(value: String) = context.dataStore.edit { it[Keys.lastPayment]=value }
 }
-

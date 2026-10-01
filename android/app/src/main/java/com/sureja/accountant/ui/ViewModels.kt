@@ -38,10 +38,10 @@ data class HomeState(val total:Long=0,val previousTotal:Long=0,val reviewCount:I
     fun showPreviousMonth(){selectedMonth.value=YearMonth.now().minusMonths(1)}
 }
 
-data class AddState(val members:List<MemberEntity> = emptyList(),val categories:List<CategoryEntity> = emptyList(),val accounts:List<AccountEntity> = emptyList(),val saving:Boolean=false,val saved:Boolean=false,val error:String?=null)
-@HiltViewModel class AddViewModel @Inject constructor(private val repository: AccountantRepository): ViewModel() {
+data class AddState(val members:List<MemberEntity> = emptyList(),val categories:List<CategoryEntity> = emptyList(),val accounts:List<AccountEntity> = emptyList(),val currentUserId:String?=null,val saving:Boolean=false,val saved:Boolean=false,val error:String?=null)
+@HiltViewModel class AddViewModel @Inject constructor(private val repository: AccountantRepository,store:AuthStore): ViewModel() {
     private val progress=MutableStateFlow(AddState())
-    val state=combine(repository.members(),repository.categories(),repository.accounts(),progress) { m,c,a,p -> p.copy(members=m,categories=c,accounts=a) }.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),AddState())
+    val state=combine(repository.members(),repository.categories(),repository.accounts(),store.userId,progress) { m,c,a,userId,p -> p.copy(members=m,categories=c,accounts=a,currentUserId=userId) }.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),AddState())
     fun save(amount:String,categoryId:String?,memberId:String?,payment:PaymentMethod,accountId:String?,merchant:String,note:String,onSaved:()->Unit) {
         val paise=amount.toBigDecimalOrNull()?.movePointRight(2)?.toLong(); if(paise==null||paise<=0||memberId==null){progress.value=progress.value.copy(error="Enter an amount and choose who paid");return}
         viewModelScope.launch { progress.value=progress.value.copy(saving=true,error=null); runCatching { repository.addExpense(ExpenseInput(paise,categoryId,memberId,payment,accountId,merchant,note,OffsetDateTime.now().toString())) }.onSuccess { progress.value=progress.value.copy(saving=false,saved=true);onSaved() }.onFailure { progress.value=progress.value.copy(saving=false,error="Expense was not saved") } }

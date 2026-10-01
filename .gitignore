@@ -1,0 +1,13 @@
+.gradle/
+.kotlin/
+.idea/
+local.properties
+**/build/
+backend/node_modules/
+backend/.wrangler/
+backend/.dev.vars
+backend/coverage/
+android/app/google-services.json
+*.jks
+*.keystore
+.DS_Store

@@ -1,0 +1,54 @@
+# Accountant
+
+See [next steps and device/Firebase testing](docs/next-steps.md) for the implementation checkpoint and remaining work before household rollout.
+
+Private, offline-first household expense tracking for Android. The repository contains:
+
+- `android/` — Kotlin, Jetpack Compose, Room, WorkManager, Hilt application.
+- `backend/` — Cloudflare Worker, Hono API, and D1 migrations.
+- `docs/` — API and local setup notes.
+
+## Backend
+
+```bash
+cd backend
+npm install
+npm test
+npm run dev
+```
+
+Apply the local D1 schema before first use:
+
+```bash
+npx wrangler d1 migrations apply accountant-db --local
+```
+
+Seeded development logins are `shrut`, `mom`, and `dad`, each with PIN `123456`. Change them before a real deployment.
+
+## Android
+
+Install a JDK before opening the project. On Ubuntu/Debian:
+
+```bash
+sudo apt update
+sudo apt install openjdk-21-jdk
+```
+
+Then open `android/` in Android Studio and choose that JDK under **Settings → Build Tools → Gradle → Gradle JDK**. The checked-in Gradle wrapper handles the Gradle installation.
+
+The default debug API URL is `http://10.0.2.2:8787/`, which reaches a Worker running on the development computer from the Android emulator. Override it for a deployed Worker with:
+
+```bash
+cd android
+./gradlew assembleDebug -PAPI_BASE_URL=https://your-worker.example.workers.dev/
+```
+
+Release builds reject cleartext HTTP. Debug builds permit it only for local Worker development.
+
+The UI reads exclusively from Room. Manual expenses are committed locally first and synchronization runs independently through WorkManager.
+
+The debug APK is produced at `android/app/build/outputs/apk/debug/app-debug.apk`.
+
+## Security and privacy
+
+Amounts are integer paise throughout. PINs use salted PBKDF2 hashes supported by the Cloudflare Web Crypto runtime. Refresh tokens are only stored hashed in D1. SMS and notification bodies are parsed on-device and are never sent to the API.

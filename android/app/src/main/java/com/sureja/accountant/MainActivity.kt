@@ -1,0 +1,107 @@
+package com.sureja.accountant
+
+import android.Manifest
+import android.content.Intent
+import android.provider.Settings
+import android.os.Bundle
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.setContent
+import androidx.biometric.BiometricPrompt
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.fragment.app.FragmentActivity
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.lifecycleScope
+import androidx.navigation.compose.*
+import dagger.hilt.android.AndroidEntryPoint
+import com.sureja.accountant.data.AccountantRepository
+import com.sureja.accountant.capture.SmsHistoryScanner
+import com.sureja.accountant.export.CsvExporter
+import com.sureja.accountant.sync.SyncWorker
+import com.sureja.accountant.ui.*
+import com.sureja.accountant.ui.theme.AccountantTheme
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+@AndroidEntryPoint
+class MainActivity : FragmentActivity() {
+    @Inject lateinit var repository: AccountantRepository
+    @Inject lateinit var exporter: CsvExporter
+    @Inject lateinit var smsScanner: SmsHistoryScanner
+    override fun onCreate(savedInstanceState: Bundle?) { super.onCreate(savedInstanceState);SyncWorker.schedule(this);setContent{AccountantTheme{AccountantRoot(::requestBiometric)}} }
+    private fun requestBiometric(onSuccess:()->Unit,onUnavailable:()->Unit) {
+        val prompt=BiometricPrompt(this,mainExecutor,object:BiometricPrompt.AuthenticationCallback(){override fun onAuthenticationSucceeded(result:BiometricPrompt.AuthenticationResult){onSuccess()};override fun onAuthenticationError(code:Int,message:CharSequence){if(code==BiometricPrompt.ERROR_NO_BIOMETRICS||code==BiometricPrompt.ERROR_HW_NOT_PRESENT)onUnavailable()}})
+        prompt.authenticate(BiometricPrompt.PromptInfo.Builder().setTitle("Unlock Accountant").setSubtitle("Use your fingerprint to continue").setNegativeButtonText("Use PIN").build())
+    }
+    fun exportCsv(){lifecycleScope.launch{runCatching{exporter.share(repository.exportTransactions())}.onFailure{Toast.makeText(this@MainActivity,"Could not export expenses",Toast.LENGTH_SHORT).show()}}}
+    fun scanSms(){lifecycleScope.launch{runCatching{smsScanner.scanLast30Days()}.onSuccess{Toast.makeText(this@MainActivity,"$it possible expenses added for review",Toast.LENGTH_LONG).show()}.onFailure{Toast.makeText(this@MainActivity,"Could not scan messages",Toast.LENGTH_SHORT).show()}}}
+}
+
+private data class NavItem(val route:String,val label:String,val icon:ImageVector)
+
+@Composable
+private fun MainActivity.AccountantRoot(biometric:((()->Unit),(()->Unit))->Unit,session:SessionViewModel=hiltViewModel()) {
+    val hasSession by session.hasSession.collectAsState();var unlocked by remember{mutableStateOf(false)}
+    LaunchedEffect(hasSession){if(hasSession&&!unlocked)biometric({unlocked=true},{})}
+    when { !hasSession -> LoginScreen(session);!unlocked -> LockedScreen({biometric({unlocked=true},{})},{session.logout()});else -> MainShell(session) }
+}
+
+@Composable
+private fun MainActivity.MainShell(session:SessionViewModel) {
+    val activity = this
+    val nav = rememberNavController()
+    val displayName by session.displayName.collectAsState()
+    val items = listOf(
+        NavItem("home", "Home", Icons.Default.Home),
+        NavItem("transactions", "Transactions", Icons.Default.ReceiptLong),
+        NavItem("add", "Add", Icons.Default.AddCircle),
+        NavItem("reports", "Reports", Icons.Default.BarChart),
+        NavItem("profile", "Profile", Icons.Default.Person),
+    )
+    val current by nav.currentBackStackEntryAsState()
+    val route = current?.destination?.route
+    val smsPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) activity.scanSms() else Toast.makeText(activity, "SMS permission is needed for the history scan", Toast.LENGTH_LONG).show()
+    }
+    Scaffold(bottomBar = {
+        if (route !in setOf("review", "categories", "accounts")) NavigationBar {
+            items.forEach { item ->
+                NavigationBarItem(
+                    selected = route == item.route,
+                    onClick = { nav.navigate(item.route) { popUpTo("home") { saveState = true }; launchSingleTop = true; restoreState = true } },
+                    icon = { Icon(item.icon, null) },
+                    label = { Text(item.label) },
+                )
+            }
+        }
+    }) { contentPadding ->
+        NavHost(nav, "home", Modifier.padding(contentPadding)) {
+            composable("home") { HomeScreen({ nav.navigate("add") }, { nav.navigate("review") }) }
+            composable("transactions") { TransactionsScreen() }
+            composable("add") { AddExpenseScreen(onSaved = { nav.navigate("transactions") { popUpTo("add") { inclusive = true } } }) }
+            composable("reports") { ReportsScreen() }
+            composable("profile") {
+                ProfileScreen(
+                    displayName = displayName,
+                    onLogout = { session.logout() },
+                    onSync = { SyncWorker.now(activity); Toast.makeText(activity, "Sync scheduled", Toast.LENGTH_SHORT).show() },
+                    onExport = activity::exportCsv,
+                    onScanSms = { smsPermission.launch(Manifest.permission.READ_SMS) },
+                    onNotificationAccess = { activity.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) },
+                    onCategories = { nav.navigate("categories") },
+                    onAccounts = { nav.navigate("accounts") },
+                )
+            }
+            composable("review") { ReviewScreen(onBack = { nav.popBackStack() }) }
+            composable("categories") { CategoriesScreen(onBack = { nav.popBackStack() }) }
+            composable("accounts") { AccountsScreen(onBack = { nav.popBackStack() }) }
+        }
+    }
+}

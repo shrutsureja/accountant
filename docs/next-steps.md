@@ -4,16 +4,16 @@ The [plan audit](plan-audit.md) tracks every planned phase and records specific 
 
 ## Current checkpoint
 
-The Android SDK is installed locally. The Firebase-configured debug APK and Android unit tests passed on 1 October 2026. Backend typechecking, crypto tests, migrations, and a local login/create/analytics smoke test passed previously; the local Worker health endpoint also passed. This is an initial implementation, not a fully validated V1: HyperOS canceled the first APK install pending device approval, so physical-device behavior and multi-device consistency are still unverified.
+The Firebase-configured debug APK builds and runs on a Redmi Note 13 5G (Android 15, HyperOS 3.0.4.0). On 1 October 2026, login, offline create/persistence, edit, initial sync, token refresh, and synced deletion passed on this phone against local D1. September's confirmed SMS expenses are visible in Home and Reports by selecting September, including household and category totals. Android unit tests, backend typechecking/crypto tests, and a local API smoke test passed. This is an initial implementation, not a fully validated V1; two-phone consistency and production deployment remain untested.
 
 ## Implementation work before household rollout
 
-1. Fix synchronization correctness: push catalogs before dependent transactions; normalize timestamps; handle pagination, retries, concurrent edits during sync, and atomic acknowledgment. Test offline phone A → server → phone B, deletions, and conflicts.
-2. Implement automatic access-token refresh, revoked-device checks, login rate limiting, safe PIN changes, and offline PIN unlock. Ensure phones without enrolled biometrics can enter the app without a login loop.
-3. Complete expense date/time selection, current-user and last-payment defaults, previous-month comparison, report month selection, date/category/payment filters, CSV date ranges, category rename, device management, sync status, and merchant-learning prompts.
-4. Harden capture: multipart SMS, RECEIVE_SMS permission flow, reference/time-window deduplication across sources and devices, failed-payment exclusions, real anonymized fixtures, and review editing.
+1. Harden synchronization: push catalogs before dependent transactions; normalize timestamps; handle pagination, retries, concurrent edits during sync, and atomic acknowledgment. Test phone A → server → phone B, edits, deletions, and conflicts.
+2. Complete revoked-device checks, login rate limiting, safe PIN changes, and offline PIN unlock. Automatic access-token refresh works in the tested sync flow. Ensure phones without enrolled biometrics can enter without a login loop.
+3. Complete expense date/time selection, current-user and last-payment defaults, date/category/payment filters, CSV date ranges, category rename, device management, sync status, and merchant-learning prompts. Home and Reports now support historical months, but a full prior-month comparison is still pending.
+4. Harden capture: test multipart and live SMS on-device, reference/time-window deduplication across sources/devices, more bank-specific parsing, anonymized regression fixtures, and review editing. Multipart assembly, a RECEIVE_SMS permission action, and exclusions for failed/pending/mandate messages are implemented.
 5. Verify the configured Firebase Messaging SDK/plugin integration, then implement FirebaseMessagingService, notification permission/channel, device-token registration/rotation, and server sending. The Gradle dependencies are configured; push delivery is not yet implemented or verified.
-6. Add meaningful Room, repository, API, analytics, and sync integration tests. Current unit coverage is limited to parser/fingerprint cases and backend cryptography.
+6. Add meaningful Room, repository, API, analytics, and sync integration tests. Current automated coverage remains limited to parser/fingerprint/month-range cases and backend cryptography.
 
 ## Physical-device test session
 
@@ -26,14 +26,14 @@ Install the resulting debug APK with `adb install -r app/build/outputs/apk/debug
 Test and record:
 
 - Sign in, close/reopen, fingerprint success/cancel, and PIN fallback.
-- Disable connectivity after login; add ₹420 Groceries/Cash; verify immediate display and persistence after restart. Edit and delete offline.
+- Disable connectivity after login; add an expense and verify immediate display and persistence after restart. Edit and delete offline.
 - Restore connectivity and tap Sync now. Verify a second phone receives the same data and totals, including edits and deletions.
 - Confirm that DETECTED items do not count toward reports until confirmed; ignored items do not count.
 - Grant SMS/notification permissions deliberately. Scan anonymized fixtures and validate one review item per payment, amount in paise, and no raw message storage/upload.
 - Export CSV and inspect amounts, quoting, category/member labels, and non-ASCII text.
 - Test large font size, tap targets, screen locking, process restart, battery restrictions, and notification-listener persistence. Record phone model and OS version with each issue.
 
-For hands-on debugging, leave one authorized phone connected by USB. Use targeted logcat/app diagnostics; do not collect or share complete SMS inboxes or unrelated device logs.
+For hands-on debugging, leave one authorized phone connected by USB. The user explicitly allowed inspection of the phone's SMS for parser validation. Only redacted patterns and aggregate findings were used; do not add raw messages to the repository or share an inbox dump.
 
 ## Firebase configuration
 

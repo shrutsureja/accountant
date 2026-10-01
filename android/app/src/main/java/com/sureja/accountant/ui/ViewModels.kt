@@ -12,6 +12,7 @@ import com.sureja.accountant.data.preferences.AuthStore
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.OffsetDateTime
+import java.time.YearMonth
 import javax.inject.Inject
 
 @HiltViewModel class SessionViewModel @Inject constructor(private val repository: AccountantRepository,private val store: AuthStore): ViewModel() {
@@ -24,9 +25,17 @@ import javax.inject.Inject
 }
 sealed interface LoginState { data object Idle:LoginState; data object Loading:LoginState; data object Success:LoginState; data class Error(val message:String):LoginState }
 
-data class HomeState(val total:Long=0,val reviewCount:Int=0,val people:List<NamedAmount> = emptyList(),val categories:List<NamedAmount> = emptyList())
+data class HomeState(val total:Long=0,val previousTotal:Long=0,val reviewCount:Int=0,val people:List<NamedAmount> = emptyList(),val categories:List<NamedAmount> = emptyList())
 @HiltViewModel class HomeViewModel @Inject constructor(repository: AccountantRepository): ViewModel() {
-    val state=combine(repository.total(),repository.reviewCount(),repository.memberTotals(),repository.categoryTotals()) { total,review,people,categories -> HomeState(total,review,people,categories.take(5)) }.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),HomeState())
+    val selectedMonth = MutableStateFlow(YearMonth.now())
+    private val previousMonth = MonthRange.forMonth(YearMonth.now().minusMonths(1))
+    val state=selectedMonth.flatMapLatest { month ->
+        val range=MonthRange.forMonth(month)
+        combine(repository.total(range),repository.total(previousMonth),repository.reviewCount(),repository.memberTotals(range),repository.categoryTotals(range)) { total,previous,review,people,categories -> HomeState(total,previous,review,people,categories.take(5)) }
+    }.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),HomeState())
+    fun previousMonth(){selectedMonth.value=selectedMonth.value.minusMonths(1)}
+    fun nextMonth(){if(selectedMonth.value<YearMonth.now())selectedMonth.value=selectedMonth.value.plusMonths(1)}
+    fun showPreviousMonth(){selectedMonth.value=YearMonth.now().minusMonths(1)}
 }
 
 data class AddState(val members:List<MemberEntity> = emptyList(),val categories:List<CategoryEntity> = emptyList(),val accounts:List<AccountEntity> = emptyList(),val saving:Boolean=false,val saved:Boolean=false,val error:String?=null)
@@ -56,7 +65,13 @@ data class AddState(val members:List<MemberEntity> = emptyList(),val categories:
 
 data class ReportsState(val total:Long=0,val categories:List<NamedAmount> = emptyList(),val people:List<NamedAmount> = emptyList(),val daily:List<DayAmount> = emptyList())
 @HiltViewModel class ReportsViewModel @Inject constructor(repository: AccountantRepository):ViewModel() {
-    val state=combine(repository.total(),repository.categoryTotals(),repository.memberTotals(),repository.dailyTotals()){total,c,p,d->ReportsState(total,c,p,d)}.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),ReportsState())
+    val selectedMonth=MutableStateFlow(YearMonth.now())
+    val state=selectedMonth.flatMapLatest { month ->
+        val range=MonthRange.forMonth(month)
+        combine(repository.total(range),repository.categoryTotals(range),repository.memberTotals(range),repository.dailyTotals(range)){total,c,p,d->ReportsState(total,c,p,d)}
+    }.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),ReportsState())
+    fun previousMonth(){selectedMonth.value=selectedMonth.value.minusMonths(1)}
+    fun nextMonth(){if(selectedMonth.value<YearMonth.now())selectedMonth.value=selectedMonth.value.plusMonths(1)}
 }
 
 @HiltViewModel class CatalogViewModel @Inject constructor(private val repository: AccountantRepository):ViewModel() {

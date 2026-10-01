@@ -16,7 +16,13 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 data class MonthRange(val from: String,val to: String) {
-    companion object { fun current(): MonthRange { val now=ZonedDateTime.now(); val start=now.withDayOfMonth(1).toLocalDate().atStartOfDay(now.zone); return MonthRange(start.toOffsetDateTime().toString(),start.plusMonths(1).toOffsetDateTime().toString()) } }
+    companion object {
+        fun forMonth(month: YearMonth): MonthRange {
+            val start = month.atDay(1).atStartOfDay(ZoneId.systemDefault())
+            return MonthRange(start.toOffsetDateTime().toString(),start.plusMonths(1).toOffsetDateTime().toString())
+        }
+        fun current(): MonthRange = forMonth(YearMonth.now())
+    }
 }
 
 data class ExpenseInput(val amountPaise: Long,val categoryId: String?,val paidByUserId: String,val paymentMethod: PaymentMethod,val accountId: String?,val merchant: String?,val note: String?,val occurredAt: String)
@@ -72,13 +78,14 @@ class AccountantRepository @Inject constructor(private val dao: AccountantDao,pr
     suspend fun ignore(id: String) = setReviewStatus(id,TransactionStatus.IGNORED)
     private suspend fun setReviewStatus(id: String,status: TransactionStatus) { val old=dao.transaction(id) ?: return; dao.upsertTransaction(old.copy(status=status,updatedAt=OffsetDateTime.now().toString(),syncStatus=if(old.syncStatus==SyncStatus.PENDING_CREATE) old.syncStatus else SyncStatus.PENDING_UPDATE)) }
 
-    suspend fun addDetected(parsed: ParsedTransaction,source: TransactionSource,occurredAt: Instant=Instant.now()) {
+    suspend fun addDetected(parsed: ParsedTransaction,source: TransactionSource,occurredAt: Instant=Instant.now()): Boolean {
         seedForOfflinePreview(); val member=authStore.session()?.userId ?: dao.members().first().id
         val fingerprint=TransactionFingerprint.create(parsed.amountPaise,occurredAt,parsed.accountLast4,parsed.merchant,parsed.sourceReference)
-        if (dao.fingerprintCount(fingerprint)>0) return
+        if (dao.fingerprintCount(fingerprint)>0) return false
         val rules=dao.merchantRules(); val category=rules.firstOrNull { parsed.merchant?.contains(it.merchantPattern,true)==true }?.categoryId
         val now=OffsetDateTime.now().toString()
         dao.upsertTransaction(TransactionEntity(UUID.randomUUID().toString(),parsed.amountPaise,categoryId=category,paidByUserId=member,paymentMethod=PaymentMethod.valueOf(parsed.paymentMethod),merchant=parsed.merchant,occurredAt=occurredAt.atZone(ZoneId.systemDefault()).toOffsetDateTime().toString(),source=source,status=TransactionStatus.DETECTED,sourceReference=parsed.sourceReference,fingerprint=fingerprint,createdByUserId=member,updatedByUserId=member,createdAt=now,updatedAt=now,syncStatus=SyncStatus.PENDING_CREATE))
+        return true
     }
 
     suspend fun logout() { runCatching { api.logout() }; authStore.clear() }

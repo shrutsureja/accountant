@@ -19,21 +19,26 @@ interface TransactionMessageParser {
 }
 
 class GenericDebitParser : TransactionMessageParser {
-    private val debit = Regex("(?i)\\b(debited|spent|paid|purchase)\\b")
+    private val debit = Regex("(?i)\\b(debited|spent|paid|purchase|sent|transferred)\\b|\\bDr\\.\\s+from\\b")
     private val credit = Regex("(?i)\\b(credited|received|refund(?:ed)?)\\b")
+    private val outgoingDespiteCredit = Regex("(?i)\\bdebited\\s+from\\b|\\bdebited\\b.{0,100}\\bcredited\\s+to\\b")
+    private val unsuccessful = Regex("(?i)\\b(fail(?:ed|ure)?|declined|rejected|pending|revers(?:ed|al)|cancel(?:led|ed)|request|mandate)\\b")
     private val amount = Regex("(?i)(?:INR|Rs\\.?|₹)\\s*([0-9,]+(?:\\.[0-9]{1,2})?)")
-    private val account = Regex("(?i)(?:a/c|acct|account)(?:\\s+(?:ending|no\\.?))?\\s*(?:xx|x|\\*)*([0-9]{4})")
+    private val account = Regex("(?i)(?:a/c|acct|account)(?:\\s+(?:ending|no\\.?))?\\s*(?:\\.{2,}|xx|x|\\*)*([0-9]{4,16})")
     private val merchant = Regex("(?i)(?:at|to|towards)\\s+([A-Z0-9][A-Z0-9 .&_-]{1,40}?)(?:\\s+(?:on|via|ref|upi)|[.,]|$)")
     private val reference = Regex("(?i)(?:ref(?:erence)?|utr|txn(?: id)?)[: #.-]*([A-Z0-9]{6,30})")
-    override fun canParse(message: String) = debit.containsMatchIn(message) && !credit.containsMatchIn(message)
+    override fun canParse(message: String) = debit.containsMatchIn(message) &&
+        (!credit.containsMatchIn(message) || outgoingDespiteCredit.containsMatchIn(message)) &&
+        !unsuccessful.containsMatchIn(message)
     override fun parse(message: String): ParsedTransaction? {
         if (!canParse(message)) return null
         val raw = amount.find(message)?.groupValues?.get(1)?.replace(",", "")?.toBigDecimalOrNull() ?: return null
+        val amountPaise = runCatching { raw.movePointRight(2).longValueExact() }.getOrNull()?.takeIf { it > 0 } ?: return null
         return ParsedTransaction(
-            amountPaise = raw.movePointRight(2).longValueExact(),
+            amountPaise = amountPaise,
             merchant = merchant.find(message)?.groupValues?.get(1)?.trim(),
-            accountLast4 = account.find(message)?.groupValues?.get(1),
-            paymentMethod = if (message.contains("UPI", true)) "UPI" else "OTHER",
+            accountLast4 = account.find(message)?.groupValues?.get(1)?.takeLast(4),
+            paymentMethod = if (message.contains("UPI", true) || Regex("\\b[\\w.-]+@[\\w.-]+\\b").containsMatchIn(message)) "UPI" else "OTHER",
             sourceReference = reference.find(message)?.groupValues?.get(1),
         )
     }
@@ -51,8 +56,16 @@ class IciciSmsParser(private val fallback: GenericDebitParser = GenericDebitPars
     override fun canParse(message: String) = message.contains("ICICI", true) && fallback.canParse(message)
     override fun parse(message: String) = if (canParse(message)) fallback.parse(message) else null
 }
+class BankOfBarodaSmsParser(private val fallback: GenericDebitParser = GenericDebitParser()) : TransactionMessageParser {
+    override fun canParse(message: String) = (message.contains("Bank of Baroda", true) || message.contains("-BOB", true)) && fallback.canParse(message)
+    override fun parse(message: String) = if (canParse(message)) fallback.parse(message) else null
+}
+class KotakSmsParser(private val fallback: GenericDebitParser = GenericDebitParser()) : TransactionMessageParser {
+    override fun canParse(message: String) = message.contains("Kotak", true) && fallback.canParse(message)
+    override fun parse(message: String) = if (canParse(message)) fallback.parse(message) else null
+}
 
-class ParserRegistry(private val parsers: List<TransactionMessageParser> = listOf(HdfcSmsParser(),SbiSmsParser(),IciciSmsParser(),GenericDebitParser())) {
+class ParserRegistry(private val parsers: List<TransactionMessageParser> = listOf(HdfcSmsParser(),SbiSmsParser(),IciciSmsParser(),BankOfBarodaSmsParser(),KotakSmsParser(),GenericDebitParser())) {
     fun parse(message: String): ParsedTransaction? = parsers.firstOrNull { it.canParse(message) }?.parse(message)
 }
 
@@ -65,4 +78,3 @@ object TransactionFingerprint {
     }
     private fun sha(value: String) = MessageDigest.getInstance("SHA-256").digest(value.toByteArray()).joinToString("") { "%02x".format(it) }
 }
-

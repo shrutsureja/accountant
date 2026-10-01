@@ -8,7 +8,7 @@ import { mapAccount, mapCategory, mapMerchantRule, mapTransaction } from '../uti
 export const syncRoutes = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
 const syncSchema = z.object({
-  lastSyncAt: z.string().datetime({ offset: true }).nullable(),
+  lastSyncAt: z.string().datetime({ offset: true }).nullable().optional(),
   changes: z.array(z.object({ entity: z.enum(['transaction','category','account','merchant_rule']), operation: z.enum(['UPSERT','DELETE']), data: z.record(z.string(), z.unknown()) })).max(1000),
 });
 
@@ -68,4 +68,3 @@ syncRoutes.post('/', async (c) => {
   }
   return c.json({ serverChanges: await serverChanges(c.env.DB, input.lastSyncAt ?? '1970-01-01T00:00:00.000Z'), serverTime });
 });
-

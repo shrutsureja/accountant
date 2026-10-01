@@ -19,8 +19,14 @@ class TransactionSmsReceiver : BroadcastReceiver() {
         if(intent.action!=Telephony.Sms.Intents.SMS_RECEIVED_ACTION)return
         val pending=goAsync()
         CoroutineScope(SupervisorJob()+Dispatchers.IO).launch {
-            try { Telephony.Sms.Intents.getMessagesFromIntent(intent).forEach { sms -> ParserRegistry().parse(sms.messageBody)?.let { repository.addDetected(it,TransactionSource.SMS,Instant.ofEpochMilli(sms.timestampMillis)) } } } finally { pending.finish() }
+            try {
+                val parts = Telephony.Sms.Intents.getMessagesFromIntent(intent)
+                if (parts.isNotEmpty()) {
+                    val body = parts.joinToString("") { it.messageBody.orEmpty() }
+                    val receivedAt = parts.minOf { it.timestampMillis }
+                    ParserRegistry().parse(body)?.let { repository.addDetected(it,TransactionSource.SMS,Instant.ofEpochMilli(receivedAt)) }
+                }
+            } finally { pending.finish() }
         }
     }
 }
-

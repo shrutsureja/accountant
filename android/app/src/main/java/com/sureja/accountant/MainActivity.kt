@@ -70,6 +70,9 @@ private fun MainActivity.MainShell(session:SessionViewModel) {
     val smsPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) activity.scanSms() else Toast.makeText(activity, "SMS permission is needed for the history scan", Toast.LENGTH_LONG).show()
     }
+    val liveSmsPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        Toast.makeText(activity, if (granted) "Live SMS detection enabled" else "Live SMS detection remains off", Toast.LENGTH_LONG).show()
+    }
     Scaffold(bottomBar = {
         if (route !in setOf("review", "categories", "accounts")) NavigationBar {
             items.forEach { item ->
@@ -94,6 +97,7 @@ private fun MainActivity.MainShell(session:SessionViewModel) {
                     onSync = { SyncWorker.now(activity); Toast.makeText(activity, "Sync scheduled", Toast.LENGTH_SHORT).show() },
                     onExport = activity::exportCsv,
                     onScanSms = { smsPermission.launch(Manifest.permission.READ_SMS) },
+                    onEnableLiveSms = { liveSmsPermission.launch(Manifest.permission.RECEIVE_SMS) },
                     onNotificationAccess = { activity.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) },
                     onCategories = { nav.navigate("categories") },
                     onAccounts = { nav.navigate("accounts") },

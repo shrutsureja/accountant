@@ -86,12 +86,13 @@ private data class TransactionFilters(val search:String,val member:String?,val c
     }
 }
 
-data class ReportsState(val total:Long=0,val categories:List<NamedAmount> = emptyList(),val people:List<NamedAmount> = emptyList(),val daily:List<DayAmount> = emptyList())
+data class ReportsState(val total:Long=0,val previousTotal:Long=0,val categories:List<NamedAmount> = emptyList(),val people:List<NamedAmount> = emptyList(),val daily:List<DayAmount> = emptyList())
 @HiltViewModel class ReportsViewModel @Inject constructor(repository: AccountantRepository):ViewModel() {
     val selectedMonth=MutableStateFlow(YearMonth.now())
     val state=selectedMonth.flatMapLatest { month ->
         val range=MonthRange.forMonth(month)
-        combine(repository.total(range),repository.categoryTotals(range),repository.memberTotals(range),repository.dailyTotals(range)){total,c,p,d->ReportsState(total,c,p,d)}
+        val previous=MonthRange.forMonth(month.minusMonths(1))
+        combine(repository.total(range),repository.total(previous),repository.categoryTotals(range),repository.memberTotals(range),repository.dailyTotals(range)){total,previousTotal,c,p,d->ReportsState(total,previousTotal,c,p,d)}
     }.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),ReportsState())
     fun previousMonth(){selectedMonth.value=selectedMonth.value.minusMonths(1)}
     fun nextMonth(){if(selectedMonth.value<YearMonth.now())selectedMonth.value=selectedMonth.value.plusMonths(1)}

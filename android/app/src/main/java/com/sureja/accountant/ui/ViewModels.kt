@@ -80,6 +80,10 @@ private data class TransactionFilters(val search:String,val member:String?,val c
 @HiltViewModel class ReviewViewModel @Inject constructor(private val repository: AccountantRepository):ViewModel() {
     val items=repository.reviewQueue().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
     fun confirm(id:String)=viewModelScope.launch{repository.confirm(id)}; fun ignore(id:String)=viewModelScope.launch{repository.ignore(id)}
+    fun update(item:TransactionListItem,amount:String,categoryId:String,memberId:String,payment:PaymentMethod,accountId:String?,merchant:String,note:String) {
+        val paise=parseAmountPaise(amount)?:return
+        viewModelScope.launch { repository.updateExpense(item.id,ExpenseInput(paise,categoryId,memberId,payment,if(payment==PaymentMethod.CASH)null else accountId,merchant,note,item.occurredAt)) }
+    }
 }
 
 data class ReportsState(val total:Long=0,val categories:List<NamedAmount> = emptyList(),val people:List<NamedAmount> = emptyList(),val daily:List<DayAmount> = emptyList())

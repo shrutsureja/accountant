@@ -70,12 +70,12 @@ fun SectionTitle(text: String, action: (() -> Unit)? = null, actionLabel: String
 
 @Composable
 fun PrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
-    Button(onClick, modifier.heightIn(min = 52.dp), enabled = enabled) { Text(text) }
+    Button(onClick, modifier.heightIn(min = 52.dp), enabled = enabled, shape = MaterialTheme.shapes.small) { Text(text) }
 }
 
 @Composable
 fun SecondaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
-    OutlinedButton(onClick, modifier.heightIn(min = 52.dp), enabled = enabled) { Text(text) }
+    OutlinedButton(onClick, modifier.heightIn(min = 52.dp), enabled = enabled, shape = MaterialTheme.shapes.small) { Text(text) }
 }
 
 @Composable

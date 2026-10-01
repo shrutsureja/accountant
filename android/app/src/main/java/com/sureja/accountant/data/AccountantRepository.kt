@@ -30,6 +30,7 @@ data class ExpenseInput(val amountPaise: Long,val categoryId: String?,val paidBy
 @Singleton
 class AccountantRepository @Inject constructor(private val dao: AccountantDao,private val api: AccountantApi,private val authStore: AuthStore,private val json: Json) {
     fun members() = dao.observeMembers(); fun categories() = dao.observeCategories(); fun allCategories() = dao.observeAllCategories(); fun accounts() = dao.observeAccounts();fun allAccounts()=dao.observeAllAccounts()
+    fun recentCategoryUsage(sinceDate: LocalDate) = dao.observeRecentCategoryUsage(sinceDate.toString())
     fun transactions(search: String="",member: String?=null) = dao.observeTransactions(search,member)
     fun reviewQueue() = dao.observeReviewQueue()
     fun total(range: MonthRange=MonthRange.current()) = dao.observeTotal(range.from,range.to)
@@ -50,7 +51,7 @@ class AccountantRepository @Inject constructor(private val dao: AccountantDao,pr
         if (dao.members().isNotEmpty()) return
         val now=OffsetDateTime.now().toString()
         dao.seed(
-            listOf(MemberEntity("user-shrut","shrut","Shrut","S",now),MemberEntity("user-mom","mom","Mom","M",now),MemberEntity("user-dad","dad","Dad","D",now)),
+            listOf(MemberEntity("user-shrut","shrut","Shrut","S",now),MemberEntity("user-mom","mom","Alpa","A",now),MemberEntity("user-dad","dad","Hitesh","H",now)),
             defaultCategories.map { CategoryEntity("cat-${it.first}",it.second,createdAt=now,updatedAt=now) },
             AccountEntity("account-cash","Cash",paymentMethod=PaymentMethod.CASH,createdAt=now,updatedAt=now)
         )
@@ -58,7 +59,10 @@ class AccountantRepository @Inject constructor(private val dao: AccountantDao,pr
 
     suspend fun refreshCatalog() {
         val (members,categories,accounts)=listOf(api.members(),api.categories(),api.accounts())
-        dao.upsertMembers((members as MembersResponse).members.map { MemberEntity(it.id,it.username,it.displayName,it.avatarInitials,it.createdAt) })
+        val memberEntities = (members as MembersResponse).members.map { MemberEntity(it.id,it.username,it.displayName,it.avatarInitials,it.createdAt) }
+        dao.upsertMembers(memberEntities)
+        val currentUserId = authStore.userId.first()
+        memberEntities.firstOrNull { it.id == currentUserId }?.let { authStore.updateDisplayName(it.displayName) }
         dao.upsertCategories((categories as CategoriesResponse).categories.map { it.toEntity() })
         dao.upsertAccounts((accounts as AccountsResponse).accounts.map { it.toEntity() })
     }

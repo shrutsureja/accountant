@@ -12,6 +12,9 @@ import com.sureja.accountant.data.preferences.AuthStore
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.OffsetDateTime
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZoneId
 import java.time.YearMonth
 import javax.inject.Inject
 
@@ -38,13 +41,18 @@ data class HomeState(val total:Long=0,val previousTotal:Long=0,val reviewCount:I
     fun showPreviousMonth(){selectedMonth.value=YearMonth.now().minusMonths(1)}
 }
 
-data class AddState(val members:List<MemberEntity> = emptyList(),val categories:List<CategoryEntity> = emptyList(),val accounts:List<AccountEntity> = emptyList(),val currentUserId:String?=null,val saving:Boolean=false,val saved:Boolean=false,val error:String?=null)
+data class AddState(val members:List<MemberEntity> = emptyList(),val categories:List<CategoryEntity> = emptyList(),val accounts:List<AccountEntity> = emptyList(),val categoryUsage:List<CategoryUsage> = emptyList(),val currentUserId:String?=null,val saving:Boolean=false,val saved:Boolean=false,val error:String?=null)
 @HiltViewModel class AddViewModel @Inject constructor(private val repository: AccountantRepository,store:AuthStore): ViewModel() {
     private val progress=MutableStateFlow(AddState())
-    val state=combine(repository.members(),repository.categories(),repository.accounts(),store.userId,progress) { m,c,a,userId,p -> p.copy(members=m,categories=c,accounts=a,currentUserId=userId) }.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),AddState())
-    fun save(amount:String,categoryId:String?,memberId:String?,payment:PaymentMethod,accountId:String?,merchant:String,note:String,onSaved:()->Unit) {
-        val paise=amount.toBigDecimalOrNull()?.movePointRight(2)?.toLong(); if(paise==null||paise<=0||memberId==null){progress.value=progress.value.copy(error="Enter an amount and choose who paid");return}
-        viewModelScope.launch { progress.value=progress.value.copy(saving=true,error=null); runCatching { repository.addExpense(ExpenseInput(paise,categoryId,memberId,payment,accountId,merchant,note,OffsetDateTime.now().toString())) }.onSuccess { progress.value=progress.value.copy(saving=false,saved=true);onSaved() }.onFailure { progress.value=progress.value.copy(saving=false,error="Expense was not saved") } }
+    private val catalog=combine(repository.members(),repository.categories(),repository.accounts(),repository.recentCategoryUsage(LocalDate.now().minusDays(90))) { m,c,a,usage -> AddState(members=m,categories=c,accounts=a,categoryUsage=usage) }
+    val state=combine(catalog,store.userId,progress) { catalogState,userId,p -> catalogState.copy(currentUserId=userId,saving=p.saving,saved=p.saved,error=p.error) }.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),AddState())
+    val lastPayment=store.lastPaymentMethod.map { runCatching { PaymentMethod.valueOf(it) }.getOrDefault(PaymentMethod.CASH) }
+        .stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),PaymentMethod.CASH)
+    fun save(amount:String,categoryId:String?,memberId:String?,payment:PaymentMethod,accountId:String?,merchant:String,note:String,date:LocalDate,onSaved:()->Unit) {
+        val paise=parseAmountPaise(amount)
+        if(paise==null||memberId==null||categoryId==null){progress.value=progress.value.copy(error="Enter an amount, category, and who paid");return}
+        val occurredAt=date.atTime(LocalTime.now()).atZone(ZoneId.systemDefault()).toOffsetDateTime().toString()
+        viewModelScope.launch { progress.value=progress.value.copy(saving=true,error=null); runCatching { repository.addExpense(ExpenseInput(paise,categoryId,memberId,payment,if(payment==PaymentMethod.CASH)null else accountId,merchant,note,occurredAt)) }.onSuccess { progress.value=progress.value.copy(saving=false,saved=true);onSaved() }.onFailure { progress.value=progress.value.copy(saving=false,error="Expense was not saved") } }
     }
 }
 

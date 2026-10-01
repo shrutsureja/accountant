@@ -23,7 +23,7 @@ Apply the local D1 schema before first use:
 npx wrangler d1 migrations apply accountant-db --local
 ```
 
-Seeded development logins are `shrut`, `mom`, and `dad`, each with PIN `123456`. Change them before a real deployment.
+Seeded development logins are `shrut`, `mom`, and `dad`, displayed as Shrut, Alpa, and Hitesh respectively, each with PIN `123456`. Change the PINs before a real deployment.
 
 ## Android
 

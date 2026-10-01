@@ -112,4 +112,4 @@ data class TransactionListItem(
 
 data class NamedAmount(val id: String, val name: String, val amountPaise: Long)
 data class DayAmount(val day: String, val amountPaise: Long)
-
+data class CategoryUsage(val categoryId: String, val useCount: Int)

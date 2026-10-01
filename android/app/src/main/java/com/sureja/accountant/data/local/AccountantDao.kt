@@ -13,6 +13,10 @@ interface AccountantDao {
     @Query("SELECT * FROM categories WHERE deletedAt IS NULL ORDER BY active DESC,name") fun observeAllCategories(): Flow<List<CategoryEntity>>
     @Query("SELECT * FROM categories WHERE deletedAt IS NULL ORDER BY name") suspend fun categories(): List<CategoryEntity>
     @Query("SELECT * FROM categories WHERE syncStatus!='SYNCED'") suspend fun pendingCategories(): List<CategoryEntity>
+    @Query("""SELECT categoryId, COUNT(*) AS useCount FROM transactions
+        WHERE categoryId IS NOT NULL AND status='CONFIRMED' AND deletedAt IS NULL
+        AND date(occurredAt) >= date(:sinceDate)
+        GROUP BY categoryId""") fun observeRecentCategoryUsage(sinceDate: String): Flow<List<CategoryUsage>>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertCategories(items: List<CategoryEntity>)
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertCategory(item: CategoryEntity)
 

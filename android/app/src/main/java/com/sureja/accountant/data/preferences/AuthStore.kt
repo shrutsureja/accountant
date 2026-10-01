@@ -25,6 +25,7 @@ class AuthStore @Inject constructor(@ApplicationContext private val context: Con
     val userId: Flow<String?> = context.dataStore.data.map { it[Keys.userId] }
     val displayName: Flow<String> = context.dataStore.data.map { it[Keys.displayName].orEmpty() }
     val biometricEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.biometric] ?: true }
+    val lastPaymentMethod: Flow<String> = context.dataStore.data.map { it[Keys.lastPayment] ?: "CASH" }
 
     suspend fun session(): Session? {
         val p = context.dataStore.data.first()
@@ -35,6 +36,7 @@ class AuthStore @Inject constructor(@ApplicationContext private val context: Con
         p[Keys.access]=cipher.encrypt(session.accessToken); p[Keys.refresh]=cipher.encrypt(session.refreshToken)
     }
     suspend fun updateTokens(access: String, refresh: String) = context.dataStore.edit { it[Keys.access]=cipher.encrypt(access); it[Keys.refresh]=cipher.encrypt(refresh) }
+    suspend fun updateDisplayName(value: String) = context.dataStore.edit { it[Keys.displayName]=value }
     suspend fun clear() = context.dataStore.edit { it.clear() }
     suspend fun lastSync(): String? = context.dataStore.data.first()[Keys.lastSync]
     suspend fun setLastSync(value: String) = context.dataStore.edit { it[Keys.lastSync]=value }

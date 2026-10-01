@@ -13,7 +13,7 @@ The existing Kotlin/Jetpack Compose app remains the foundation. This plan change
 
 1. **Theme and shared foundation.** Add blue-neutral color, typography, shape, and spacing tokens; reusable basic controls; compact, readable five-item navigation. Build and run tests.
 2. **Add Expense.** Make amount entry prominent, replace large category/member/account dropdowns with bottom sheets, and keep the existing `AddViewModel.save` path. Verify creation and offline persistence; build and test.
-3. **Home.** Add simple and detailed layouts sharing the same Room data. Resolve a per-user `UiMode` centrally, defaulting parents to simple and Shrut to detailed, with a lightweight persistent preference. Build and test both modes.
+3. **Home.** Add simple and detailed layouts sharing the same Room data. Resolve a per-user `UiMode` centrally, defaulting Alpa and Hitesh to simple and Shrut to detailed, with a lightweight persistent preference. Build and test both modes.
 4. **Transactions.** Group rows by date, refine search/filter presentation, and preserve edit/delete. Add only the small Room/query support needed for useful filters. Build and test.
 5. **Needs Review.** Show compact detected-expense rows with Confirm, Ignore, and Edit. Edit needs a small ViewModel/repository addition because the current screen only exposes Confirm and Ignore. Build and test.
 6. **Reports.** Draw a compact daily chart in Compose from existing `dailyTotals`; show ranked categories, people, and summary metrics from existing totals. Avoid a chart dependency unless necessary. Build and test.
@@ -24,3 +24,4 @@ After each phase, review the changed files, verify the Android build and tests, 
 ## Progress
 
 - Phase 1: blue-neutral theme, typography, shape/spacing tokens, shared basic components, and five-item navigation implemented. Android unit tests, debug build, and both CI jobs passed. Verified on the Redmi Note 13 5G: all five navigation labels fit on one line, and a manual sync reached the local Worker with HTTP 200 after restoring USB port forwarding.
+- Phase 2: prominent amount entry, compact selectors, category/member/account bottom sheets, payment and date controls, and a persistent Save action. The category picker puts up to five categories used in confirmed transactions during the past 90 days first; remaining categories sort by name. Manual entry requires a category and excludes the internal Not categorized fallback; Other remains available. Android unit tests and debug build passed. On the Redmi, a ₹1.23 test expense saved offline, appeared in Transactions, synced after USB forwarding was restored, and was deleted and synced again. Household display names are Alpa, Hitesh, and Shrut; login usernames and member IDs remain stable.

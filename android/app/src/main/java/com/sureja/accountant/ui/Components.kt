@@ -19,6 +19,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sureja.accountant.data.local.TransactionListItem
+import com.sureja.accountant.data.local.PaymentMethod
 import com.sureja.accountant.ui.theme.AccountantColors
 import com.sureja.accountant.ui.theme.AccountantSpacing
 import java.math.BigDecimal
@@ -113,7 +114,7 @@ fun TransactionRow(item: TransactionListItem, onClick: () -> Unit = {}) {
         Column(Modifier.weight(1f)) {
             Text(item.merchant?.takeIf { it.isNotBlank() } ?: item.categoryName ?: "Expense", style = MaterialTheme.typography.titleSmall)
             Text(
-                listOfNotNull(item.categoryName, item.memberName, item.paymentMethod.name.lowercase().replaceFirstChar(Char::uppercase)).joinToString(" • "),
+                listOfNotNull(item.categoryName, item.memberName, if (item.paymentMethod == PaymentMethod.UPI) "UPI" else item.paymentMethod.name.lowercase().replaceFirstChar(Char::uppercase)).joinToString(" • "),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

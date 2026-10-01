@@ -64,14 +64,18 @@ data class AddState(val members:List<MemberEntity> = emptyList(),val categories:
 }
 
 @HiltViewModel class TransactionsViewModel @Inject constructor(private val repository: AccountantRepository):ViewModel() {
-    val search=MutableStateFlow(""); val member=MutableStateFlow<String?>(null)
-    val items=combine(search.debounce(200),member){q,m->q to m}.flatMapLatest{repository.transactions(it.first,it.second)}.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
+    val search=MutableStateFlow(""); val member=MutableStateFlow<String?>(null); val category=MutableStateFlow<String?>(null); val thisMonth=MutableStateFlow(false)
+    val items=combine(search.debounce(200),member,category,thisMonth){q,m,c,month->TransactionFilters(q,m,c,month)}
+        .flatMapLatest{repository.transactions(it.search,it.member,it.category,if(it.thisMonth)MonthRange.current() else null)}
+        .stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
+    fun clearFilters(){member.value=null;category.value=null;thisMonth.value=false}
     fun delete(id:String)=viewModelScope.launch{repository.deleteExpense(id)}
     fun update(item:TransactionListItem,amount:String,categoryId:String?,memberId:String,payment:PaymentMethod,accountId:String?,merchant:String,note:String){
-        val paise=amount.toBigDecimalOrNull()?.movePointRight(2)?.toLong()?:return
+        val paise=parseAmountPaise(amount)?:return
         viewModelScope.launch{repository.updateExpense(item.id,ExpenseInput(paise,categoryId,memberId,payment,if(payment==PaymentMethod.CASH)null else accountId,merchant,note,item.occurredAt))}
     }
 }
+private data class TransactionFilters(val search:String,val member:String?,val category:String?,val thisMonth:Boolean)
 
 @HiltViewModel class ReviewViewModel @Inject constructor(private val repository: AccountantRepository):ViewModel() {
     val items=repository.reviewQueue().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())

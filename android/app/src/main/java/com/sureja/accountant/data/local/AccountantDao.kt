@@ -33,9 +33,12 @@ interface AccountantDao {
         FROM transactions t LEFT JOIN categories c ON c.id=t.categoryId LEFT JOIN members m ON m.id=t.paidByUserId LEFT JOIN accounts a ON a.id=t.accountId
         WHERE t.deletedAt IS NULL AND t.status='CONFIRMED' AND
         (:search='' OR t.merchant LIKE '%' || :search || '%' OR t.note LIKE '%' || :search || '%' OR c.name LIKE '%' || :search || '%' OR m.displayName LIKE '%' || :search || '%') AND
-        (:memberId IS NULL OR t.paidByUserId=:memberId)
+        (:memberId IS NULL OR t.paidByUserId=:memberId) AND
+        (:categoryId IS NULL OR t.categoryId=:categoryId) AND
+        (:fromDate IS NULL OR t.occurredAt>=:fromDate) AND
+        (:toDate IS NULL OR t.occurredAt<:toDate)
         ORDER BY t.occurredAt DESC
-    """) fun observeTransactions(search: String = "", memberId: String? = null): Flow<List<TransactionListItem>>
+    """) fun observeTransactions(search: String = "", memberId: String? = null, categoryId: String? = null, fromDate: String? = null, toDate: String? = null): Flow<List<TransactionListItem>>
 
     @Query("""
         SELECT t.id,t.amountPaise,t.categoryId,c.name categoryName,t.paidByUserId,m.displayName memberName,

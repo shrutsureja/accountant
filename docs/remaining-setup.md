@@ -14,7 +14,7 @@ Create the `accountant-db` D1 database, replace the placeholder `database_id` in
 
 ## Firebase push notifications
 
-Create a private Android Firebase app for package `com.sureja.accountant` and place `google-services.json` in `android/app/`. That file is ignored by Git. FCM wiring requires this project-specific file and service-account authorization before push delivery can be tested.
+Create a private Android Firebase app for package `com.shrutsureja.accountant` and place `google-services.json` in `android/app/`. That file is ignored by Git. The Google Services plugin is applied when this file exists, and the Messaging SDK dependency is configured. Notification handling, device-token registration, and server sending still need implementation before push delivery can be tested.
 
 ## Family device validation
 

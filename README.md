@@ -49,6 +49,12 @@ The UI reads exclusively from Room. Manual expenses are committed locally first 
 
 The debug APK is produced at `android/app/build/outputs/apk/debug/app-debug.apk`.
 
+## UI redesign
+
+The [phased UI redesign plan](docs/ui-redesign-plan.md) and [visual reference](docs/design/accountant-ui-reference.png) are checked in for review. The redesign keeps the existing Compose navigation, ViewModels, Room data flow, and backend contracts. It starts with a blue-neutral theme and shared components, then proceeds through Add Expense, simple/detailed Home, Transactions, Needs Review, Reports, and Profile/Categories. Each phase is built and tested before the next begins.
+
+The five bottom destinations remain Home, Transactions, Add, Reports, and Profile. The visual reference illustrates layout and hierarchy; its example amounts are not application fixtures.
+
 ## Security and privacy
 
 Amounts are integer paise throughout. PINs use salted PBKDF2 hashes supported by the Cloudflare Web Crypto runtime. Refresh tokens are only stored hashed in D1. SMS and notification bodies are parsed on-device and are never sent to the API.

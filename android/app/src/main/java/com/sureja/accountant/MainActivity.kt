@@ -15,7 +15,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.padding
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.lifecycleScope
@@ -44,8 +43,6 @@ class MainActivity : FragmentActivity() {
     fun scanSms(){lifecycleScope.launch{runCatching{smsScanner.scanLast30Days()}.onSuccess{Toast.makeText(this@MainActivity,"$it possible expenses added for review",Toast.LENGTH_LONG).show()}.onFailure{Toast.makeText(this@MainActivity,"Could not scan messages",Toast.LENGTH_SHORT).show()}}}
 }
 
-private data class NavItem(val route:String,val label:String,val icon:ImageVector)
-
 @Composable
 private fun MainActivity.AccountantRoot(biometric:((()->Unit),(()->Unit))->Unit,session:SessionViewModel=hiltViewModel()) {
     val hasSession by session.hasSession.collectAsState();var unlocked by remember{mutableStateOf(false)}
@@ -59,11 +56,11 @@ private fun MainActivity.MainShell(session:SessionViewModel) {
     val nav = rememberNavController()
     val displayName by session.displayName.collectAsState()
     val items = listOf(
-        NavItem("home", "Home", Icons.Default.Home),
-        NavItem("transactions", "Transactions", Icons.Default.ReceiptLong),
-        NavItem("add", "Add", Icons.Default.AddCircle),
-        NavItem("reports", "Reports", Icons.Default.BarChart),
-        NavItem("profile", "Profile", Icons.Default.Person),
+        AccountantDestination("home", "Home", Icons.Default.Home),
+        AccountantDestination("transactions", "Transactions", Icons.Default.ReceiptLong),
+        AccountantDestination("add", "Add", Icons.Default.AddCircle),
+        AccountantDestination("reports", "Reports", Icons.Default.BarChart),
+        AccountantDestination("profile", "Profile", Icons.Default.Person),
     )
     val current by nav.currentBackStackEntryAsState()
     val route = current?.destination?.route
@@ -73,16 +70,9 @@ private fun MainActivity.MainShell(session:SessionViewModel) {
     val liveSmsPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         Toast.makeText(activity, if (granted) "Live SMS detection enabled" else "Live SMS detection remains off", Toast.LENGTH_LONG).show()
     }
-    Scaffold(bottomBar = {
-        if (route !in setOf("review", "categories", "accounts")) NavigationBar {
-            items.forEach { item ->
-                NavigationBarItem(
-                    selected = route == item.route,
-                    onClick = { nav.navigate(item.route) { popUpTo("home") { saveState = true }; launchSingleTop = true; restoreState = true } },
-                    icon = { Icon(item.icon, null) },
-                    label = { Text(item.label) },
-                )
-            }
+    Scaffold(containerColor = MaterialTheme.colorScheme.background, bottomBar = {
+        if (route !in setOf("review", "categories", "accounts")) AccountantNavigationBar(items, route) { destination ->
+            nav.navigate(destination) { popUpTo("home") { saveState = true }; launchSingleTop = true; restoreState = true }
         }
     }) { contentPadding ->
         NavHost(nav, "home", Modifier.padding(contentPadding)) {

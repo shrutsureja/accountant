@@ -20,3 +20,7 @@ The existing Kotlin/Jetpack Compose app remains the foundation. This plan change
 7. **Profile and Categories.** Group existing settings and actions, simplify category management, and retain account/export/sync/permission flows. Build and test.
 
 After each phase, review the changed files, verify the Android build and tests, and stop if verification fails. Do not change backend contracts or Room schemas solely for presentation. Add focused Compose UI tests where practical. Keep raw SMS and personal data out of UI debugging artifacts.
+
+## Progress
+
+- Phase 1: blue-neutral theme, typography, shape/spacing tokens, shared basic components, and five-item navigation implemented. Android unit tests and debug build passed locally. On-device visual confirmation is pending because the Redmi disconnected from ADB during this phase.

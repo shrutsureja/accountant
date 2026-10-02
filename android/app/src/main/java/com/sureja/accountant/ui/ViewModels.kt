@@ -34,7 +34,6 @@ sealed interface LoginState { data object Idle:LoginState; data object Loading:L
 data class HomeState(val total:Long=0,val previousTotal:Long=0,val reviewCount:Int=0,val people:List<NamedAmount> = emptyList(),val categories:List<NamedAmount> = emptyList(),val recent:List<TransactionListItem> = emptyList(),val todayTotal:Long=0,val weekTotal:Long=0)
 @HiltViewModel class HomeViewModel @Inject constructor(repository: AccountantRepository,store:AuthStore): ViewModel() {
     val selectedMonth = MutableStateFlow(YearMonth.now())
-    val mode=store.username.map(UiModeResolver::defaultFor).stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),UiMode.SIMPLE)
     val profileName=combine(store.userId,store.displayName,repository.members()) { userId,savedName,members -> members.firstOrNull { it.id==userId }?.displayName ?: savedName }.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),"")
     private val today=LocalDate.now()
     private val todayRange=MonthRange(today.atStartOfDay(ZoneId.systemDefault()).toOffsetDateTime().toString(),today.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toOffsetDateTime().toString())

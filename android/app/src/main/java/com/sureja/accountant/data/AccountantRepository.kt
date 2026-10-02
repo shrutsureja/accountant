@@ -55,7 +55,7 @@ class AccountantRepository @Inject constructor(private val dao: AccountantDao,pr
         if (dao.members().isNotEmpty()) return
         val now=OffsetDateTime.now().toString()
         dao.seed(
-            listOf(MemberEntity("user-shrut","shrut","Shrut","S",now),MemberEntity("user-mom","mom","Alpa","A",now),MemberEntity("user-dad","dad","Hitesh","H",now)),
+            listOf(MemberEntity("user-shrut","shrut","Shrut","S",now),MemberEntity("user-mom","alpa","Alpa","A",now),MemberEntity("user-dad","hitesh","Hitesh","H",now)),
             defaultCategories.map { CategoryEntity("cat-${it.first}",it.second,createdAt=now,updatedAt=now) },
             AccountEntity("account-cash","Cash",paymentMethod=PaymentMethod.CASH,createdAt=now,updatedAt=now)
         )

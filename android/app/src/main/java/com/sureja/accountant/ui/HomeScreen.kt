@@ -36,7 +36,6 @@ fun HomeScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val month by viewModel.selectedMonth.collectAsState()
-    val mode by viewModel.mode.collectAsState()
     val name by viewModel.profileName.collectAsState()
     val currentMonth = month == YearMonth.now()
 
@@ -47,14 +46,14 @@ fun HomeScreen(
     ) {
         item {
             Text(
-                "Good ${homeGreeting()}${if (mode == UiMode.DETAILED && name.isNotBlank()) ", $name" else ""}",
+                "Good ${homeGreeting()}${if (name.isNotBlank()) ", $name" else ""}",
                 style = MaterialTheme.typography.titleLarge,
             )
             Spacer(Modifier.height(AccountantSpacing.base))
             HomeMonthSelector(month, viewModel::previousMonth, viewModel::nextMonth)
             Text("${month.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} spending", style = MaterialTheme.typography.bodyMedium, color = AccountantColors.SecondaryText)
             MoneyText(state.total, Modifier.padding(top = AccountantSpacing.xs), fontSize = 40)
-            if (mode == UiMode.DETAILED && state.total > 0 && state.previousTotal > 0) {
+            if (state.total > 0 && state.previousTotal > 0) {
                 val difference = (state.total - state.previousTotal) * 100.0 / state.previousTotal
                 Text(
                     "${if (difference < 0) "↓" else "↑"} ${"%.1f".format(abs(difference))}% vs ${month.minusMonths(1).month.getDisplayName(TextStyle.FULL, Locale.getDefault())}",
@@ -63,15 +62,6 @@ fun HomeScreen(
                 )
             }
         }
-        if (mode == UiMode.SIMPLE) {
-            if (state.reviewCount > 0) item { HomeReviewRow(state.reviewCount, onReview) }
-            item { PrimaryButton("+  Add expense", onAdd, Modifier.fillMaxWidth()) }
-            item { SectionTitle("Recent expenses", onTransactions, "See all") }
-            if (state.recent.isEmpty()) item { Text("No recent expenses yet", style = MaterialTheme.typography.bodySmall, color = AccountantColors.SecondaryText) }
-            else items(state.recent.take(4), key = { it.id }) { TransactionRow(it, onTransactions) }
-            item { SectionTitle("${month.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} by person") }
-            items(state.people, key = { it.id }) { PersonSpendRow(it, state.total, showBar = false) }
-        } else {
             if (currentMonth) item {
                 Row(horizontalArrangement = Arrangement.spacedBy(AccountantSpacing.sm)) {
                     HomeMetric("Today", money(state.todayTotal), Modifier.weight(1f))
@@ -87,7 +77,6 @@ fun HomeScreen(
             item { SectionTitle("Recent expenses", onTransactions, "See all") }
             if (state.recent.isEmpty()) item { Text("No recent expenses yet", style = MaterialTheme.typography.bodySmall, color = AccountantColors.SecondaryText) }
             else items(state.recent.take(4), key = { it.id }) { TransactionRow(it, onTransactions) }
-        }
     }
 }
 

@@ -95,8 +95,8 @@ fun AddExpenseScreen(onSaved: () -> Unit, viewModel: AddViewModel = hiltViewMode
     ) { padding ->
         LazyColumn(
             Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(horizontal = AccountantSpacing.page, vertical = AccountantSpacing.page),
-            verticalArrangement = Arrangement.spacedBy(AccountantSpacing.base),
+            contentPadding = PaddingValues(horizontal = AccountantSpacing.page, vertical = AccountantSpacing.md),
+            verticalArrangement = Arrangement.spacedBy(AccountantSpacing.sm),
         ) {
             item { PageHeader("Add expense") }
             item { ExpenseAmountInput(amount) { amount = it } }
@@ -137,12 +137,21 @@ fun AddExpenseScreen(onSaved: () -> Unit, viewModel: AddViewModel = hiltViewMode
                         PaymentMethod.entries.forEach { method ->
                             val selected = method == payment
                             QuickChoiceChip(
-                                if (method == PaymentMethod.UPI) "UPI" else method.name.lowercase().replaceFirstChar(Char::uppercase),
+                                if (method == PaymentMethod.UPI) "UPI/Online" else method.name.lowercase().replaceFirstChar(Char::uppercase),
                                 selected = selected,
                                 modifier = Modifier.weight(1f),
                                 onClick = { payment = method; paymentChanged = true; accountId = null },
                             )
                         }
+                    }
+                }
+            }
+            item {
+                Surface(onClick = { showDatePicker = true }, color = AccountantColors.Surface, shape = MaterialTheme.shapes.small, border = BorderStroke(1.dp, AccountantColors.Border)) {
+                    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(horizontal = AccountantSpacing.md), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Date", Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
+                        Text(dateLabel(selectedDate), style = MaterialTheme.typography.bodyMedium)
+                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = AccountantColors.SecondaryText)
                     }
                 }
             }
@@ -153,7 +162,6 @@ fun AddExpenseScreen(onSaved: () -> Unit, viewModel: AddViewModel = hiltViewMode
                 }
             }
             if (showMoreDetails) {
-                item { ExpenseSelector("Date", dateLabel(selectedDate)) { showDatePicker = true } }
                 if (payment != PaymentMethod.CASH) item {
                     ExpenseSelector("Account (optional)", selectedAccount) { selector = ExpenseSelection.ACCOUNT }
                 }
@@ -222,7 +230,7 @@ private fun CategoryQuickGrid(
 ) {
     val tiles = categories.map { it.id to it.name } + if (showMore) listOf(null to "More") else emptyList()
     Column(verticalArrangement = Arrangement.spacedBy(AccountantSpacing.sm)) {
-        tiles.chunked(2).forEach { row ->
+        tiles.chunked(4).forEach { row ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(AccountantSpacing.sm)) {
                 row.forEach { (id, name) ->
                     val selected = id != null && id == selectedId
@@ -233,15 +241,15 @@ private fun CategoryQuickGrid(
                         color = if (selected) AccountantColors.BlueLight else AccountantColors.Surface,
                         border = BorderStroke(1.dp, if (selected) AccountantColors.Blue else AccountantColors.Border),
                     ) {
-                        Row(Modifier.fillMaxWidth().heightIn(min = 50.dp).padding(horizontal = AccountantSpacing.sm), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                        Column(Modifier.fillMaxWidth().heightIn(min = 68.dp).padding(4.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                             if (id == null) Icon(Icons.Default.MoreHoriz, contentDescription = null, tint = AccountantColors.SecondaryText)
                             else CategoryIcon(name, tint = if (selected) AccountantColors.Blue else AccountantColors.SecondaryText)
                             Spacer(Modifier.width(AccountantSpacing.xs))
-                            Text(name, style = MaterialTheme.typography.labelMedium, color = if (selected) AccountantColors.BlueDark else AccountantColors.Text, maxLines = 1)
+                            Text(name, style = MaterialTheme.typography.labelSmall, color = if (selected) AccountantColors.BlueDark else AccountantColors.Text, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                         }
                     }
                 }
-                if (row.size == 1) Spacer(Modifier.weight(1f))
+                repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
             }
         }
     }

@@ -32,7 +32,7 @@ interface AccountantDao {
 
     @Query("""
         SELECT t.id,t.amountPaise,t.categoryId,c.name categoryName,t.paidByUserId,m.displayName memberName,
-        t.paymentMethod,t.accountId,a.name accountName,t.merchant,t.note,t.occurredAt,t.source,t.status,t.updatedByUserId,t.syncStatus
+        t.paymentMethod,t.accountId,a.name accountName,t.merchant,t.note,t.occurredAt,t.source,t.status,t.updatedByUserId,t.syncStatus,t.createdByUserId
         FROM transactions t LEFT JOIN categories c ON c.id=t.categoryId LEFT JOIN members m ON m.id=t.paidByUserId LEFT JOIN accounts a ON a.id=t.accountId
         WHERE t.deletedAt IS NULL AND t.status='CONFIRMED' AND
         (:search='' OR t.merchant LIKE '%' || :search || '%' OR t.note LIKE '%' || :search || '%' OR c.name LIKE '%' || :search || '%' OR m.displayName LIKE '%' || :search || '%') AND
@@ -45,7 +45,7 @@ interface AccountantDao {
 
     @Query("""
         SELECT t.id,t.amountPaise,t.categoryId,c.name categoryName,t.paidByUserId,m.displayName memberName,
-        t.paymentMethod,t.accountId,a.name accountName,t.merchant,t.note,t.occurredAt,t.source,t.status,t.updatedByUserId,t.syncStatus
+        t.paymentMethod,t.accountId,a.name accountName,t.merchant,t.note,t.occurredAt,t.source,t.status,t.updatedByUserId,t.syncStatus,t.createdByUserId
         FROM transactions t LEFT JOIN categories c ON c.id=t.categoryId LEFT JOIN members m ON m.id=t.paidByUserId LEFT JOIN accounts a ON a.id=t.accountId
         WHERE t.deletedAt IS NULL AND t.status='DETECTED' ORDER BY t.occurredAt DESC
     """) fun observeReviewQueue(): Flow<List<TransactionListItem>>

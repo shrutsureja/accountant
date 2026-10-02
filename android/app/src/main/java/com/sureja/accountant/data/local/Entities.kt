@@ -108,6 +108,7 @@ data class TransactionListItem(
     val status: TransactionStatus,
     val updatedByUserId: String,
     val syncStatus: SyncStatus,
+    val createdByUserId: String,
 )
 
 data class NamedAmount(val id: String, val name: String, val amountPaise: Long)

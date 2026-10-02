@@ -15,7 +15,7 @@ class TransactionGroupsTest {
         paidByUserId = "user", memberName = "Member", paymentMethod = PaymentMethod.CASH,
         accountId = null, accountName = null, merchant = null, note = null, occurredAt = date,
         source = TransactionSource.MANUAL, status = TransactionStatus.CONFIRMED,
-        updatedByUserId = "user", syncStatus = SyncStatus.SYNCED,
+        createdByUserId = "user", updatedByUserId = "user", syncStatus = SyncStatus.SYNCED,
     )
 
     @Test fun groupsNewestDayFirstAndLabelsRelativeDays() {

@@ -53,3 +53,13 @@ Removed the identity-dependent Home modes: every member now sees the same detail
 Added a blue rupee adaptive launcher icon, version labels, a local signed APK build script, and cached optional/mandatory update checks backed by a public version-policy endpoint. Builds below the configured minimum receive HTTP 426 on API requests. No APK publishing or cloud deployment was performed. See `local-apk-builds.md` for build and update-policy instructions.
 
 Validation: 33 Android unit tests and 6 backend tests passed; backend typecheck, debug build, and signed release build passed. The release APK reports version 1.1.0/build 2 and its signature verifies. The local version endpoint responded correctly. Ten screen captures from the Redmi Note 13 are saved privately under `/tmp/accountant-screens-7xy5t7mf`. Two-phone sync and on-device update-dialog checks are in progress.
+
+## Foreground sync and review attribution — 3 October 2026
+
+Added foreground-only automatic sync on connectivity and at one-minute intervals, plus manual Sync beside the Home greeting. Removed the explanatory auto-sync caption. Serialized sync and preserved local edits made while a sync request is in flight. Cancelled the old periodic background schedule.
+
+Profile scanning now offers This month, Last month, and Two months ago with calendar boundaries. Review cards show the original capturing member using the existing createdByUserId and member catalog, independently of the payer or current viewer; no schema or API contract change is needed.
+
+Add now uses five category shortcuts plus a distinct blue Browse action, three columns, single-line names, and restored section spacing. Other uses a tag icon. Amount/card padding was trimmed to make room on Alpa's smaller screen while retaining 48dp or larger controls.
+
+Validation: 42 Android unit tests pass, including foreground lifecycle/connectivity, sync snapshot merging, and calendar-month boundaries. Both phones are authorized and have successfully synced with the local Worker; source-name chips and the greeting-row Sync action were verified on-device. The controlled cross-phone create/edit/delete cycle and optional/mandatory update-dialog device checks remain outstanding. Cloud deployment and genuine notification-delivery verification remain separate follow-ups. No push or deployment performed.

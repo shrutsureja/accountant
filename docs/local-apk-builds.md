@@ -46,4 +46,8 @@ Build the new APK and make it available to family before raising the minimum ver
 
 ## Scope
 
-Automatic sync enhancements, 90-day retention, cloud deployment, Git history cleanup, and release CI are not included in this change. Transaction history remains local, and the existing sync behavior is retained.
+The signed-in app syncs while open and connected, then every minute until it goes into the background or loses connectivity. Home has a manual Sync button beside the greeting; Profile retains manual sync. The old periodic background schedule is cancelled.
+
+Profile SMS scanning offers This month, Last month, and Two months ago using calendar-month boundaries and original transaction dates. Needs Review identifies the source member from the transaction creator, independently of the selected payer.
+
+90-day retention, cloud deployment, Git history cleanup, and release CI are not included. Transaction history remains local.

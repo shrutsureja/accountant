@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -81,6 +82,7 @@ fun ReviewScreen(onBack: () -> Unit, viewModel: ReviewViewModel = hiltViewModel(
                 items(transactions, key = { it.id }) { item ->
                     ReviewTransactionCard(
                         item = item,
+                        sourceMemberName = members.firstOrNull { it.id == item.createdByUserId }?.displayName,
                         onIgnore = { viewModel.ignore(item.id) },
                         onEdit = { draft = ReviewDraft.from(item) },
                         onConfirm = {
@@ -153,7 +155,7 @@ fun ReviewScreen(onBack: () -> Unit, viewModel: ReviewViewModel = hiltViewModel(
 }
 
 @Composable
-private fun ReviewTransactionCard(item: TransactionListItem, onIgnore: () -> Unit, onEdit: () -> Unit, onConfirm: () -> Unit) {
+private fun ReviewTransactionCard(item: TransactionListItem, sourceMemberName: String?, onIgnore: () -> Unit, onEdit: () -> Unit, onConfirm: () -> Unit) {
     Surface(color = AccountantColors.Surface, shape = MaterialTheme.shapes.medium, border = BorderStroke(1.dp, AccountantColors.Border)) {
         Column(Modifier.fillMaxWidth().padding(AccountantSpacing.base), verticalArrangement = Arrangement.spacedBy(AccountantSpacing.xs)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(AccountantSpacing.md)) {
@@ -165,6 +167,12 @@ private fun ReviewTransactionCard(item: TransactionListItem, onIgnore: () -> Uni
             Text(item.merchant?.takeIf { it.isNotBlank() } ?: "Detected expense", style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
             val date = runCatching { OffsetDateTime.parse(item.occurredAt).format(DateTimeFormatter.ofPattern("d MMM · h:mm a")) }.getOrDefault(item.occurredAt.take(16))
             Text(listOfNotNull(if (item.paymentMethod == PaymentMethod.UPI) "UPI" else item.paymentMethod.name.lowercase().replaceFirstChar(Char::uppercase), date, item.accountName).joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = AccountantColors.SecondaryText)
+            Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = MaterialTheme.shapes.small) {
+                Row(Modifier.padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                    Text(sourceMemberName?.let { "Detected on $it's phone" } ?: "Source member unavailable", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                }
+            }
             Text("Category: ${item.categoryName ?: "Not categorized"}", style = MaterialTheme.typography.bodySmall, color = AccountantColors.SecondaryText)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onIgnore) { Text("Ignore", color = AccountantColors.SecondaryText) }

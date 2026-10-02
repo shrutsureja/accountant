@@ -16,7 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -60,7 +60,7 @@ fun AddExpenseScreen(onSaved: () -> Unit, viewModel: AddViewModel = hiltViewMode
         categoryPickerSections(state.categories, state.categoryUsage)
     }
     val orderedCategories = categorySections.frequent + categorySections.remaining
-    val quickCategories = orderedCategories.take(7)
+    val quickCategories = orderedCategories.take(5)
     val moreCategories = orderedCategories.drop(7)
 
     LaunchedEffect(state.members, state.currentUserId) {
@@ -96,7 +96,7 @@ fun AddExpenseScreen(onSaved: () -> Unit, viewModel: AddViewModel = hiltViewMode
         LazyColumn(
             Modifier.fillMaxSize().padding(padding),
             contentPadding = PaddingValues(horizontal = AccountantSpacing.page, vertical = AccountantSpacing.md),
-            verticalArrangement = Arrangement.spacedBy(AccountantSpacing.sm),
+            verticalArrangement = Arrangement.spacedBy(AccountantSpacing.md),
         ) {
             item { PageHeader("Add expense") }
             item { ExpenseAmountInput(amount) { amount = it } }
@@ -228,9 +228,9 @@ private fun CategoryQuickGrid(
     onSelect: (String) -> Unit,
     onMore: () -> Unit,
 ) {
-    val tiles = categories.map { it.id to it.name } + if (showMore) listOf(null to "More") else emptyList()
+    val tiles = categories.map { it.id to it.name } + if (showMore) listOf(null to "Browse") else emptyList()
     Column(verticalArrangement = Arrangement.spacedBy(AccountantSpacing.sm)) {
-        tiles.chunked(4).forEach { row ->
+        tiles.chunked(3).forEach { row ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(AccountantSpacing.sm)) {
                 row.forEach { (id, name) ->
                     val selected = id != null && id == selectedId
@@ -238,18 +238,18 @@ private fun CategoryQuickGrid(
                         onClick = { if (id == null) onMore() else onSelect(id) },
                         modifier = Modifier.weight(1f).heightIn(min = 50.dp),
                         shape = MaterialTheme.shapes.small,
-                        color = if (selected) AccountantColors.BlueLight else AccountantColors.Surface,
+                        color = if (selected || id == null) AccountantColors.BlueLight else AccountantColors.Surface,
                         border = BorderStroke(1.dp, if (selected) AccountantColors.Blue else AccountantColors.Border),
                     ) {
-                        Column(Modifier.fillMaxWidth().heightIn(min = 68.dp).padding(4.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                            if (id == null) Icon(Icons.Default.MoreHoriz, contentDescription = null, tint = AccountantColors.SecondaryText)
+                        Column(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(6.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                            if (id == null) Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Browse more categories", tint = AccountantColors.Blue)
                             else CategoryIcon(name, tint = if (selected) AccountantColors.Blue else AccountantColors.SecondaryText)
                             Spacer(Modifier.width(AccountantSpacing.xs))
-                            Text(name, style = MaterialTheme.typography.labelSmall, color = if (selected) AccountantColors.BlueDark else AccountantColors.Text, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                            Text(name, style = MaterialTheme.typography.labelSmall, color = if (selected || id == null) AccountantColors.BlueDark else AccountantColors.Text, maxLines = 1, softWrap = false, textAlign = androidx.compose.ui.text.style.TextAlign.Center, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                         }
                     }
                 }
-                repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+                repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
             }
         }
     }
@@ -273,7 +273,7 @@ private fun QuickChoiceChip(label: String, selected: Boolean, modifier: Modifier
 @Composable
 private fun ExpenseAmountInput(value: String, onValueChange: (String) -> Unit) {
     Surface(color = AccountantColors.BlueLight, shape = MaterialTheme.shapes.medium) {
-        Column(Modifier.fillMaxWidth().padding(AccountantSpacing.base), verticalArrangement = Arrangement.spacedBy(AccountantSpacing.sm)) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = AccountantSpacing.base, vertical = AccountantSpacing.sm), verticalArrangement = Arrangement.spacedBy(AccountantSpacing.sm)) {
             Text("Amount", style = MaterialTheme.typography.labelLarge, color = AccountantColors.SecondaryText)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("₹", fontSize = 40.sp, fontWeight = FontWeight.Bold, color = AccountantColors.Text)

@@ -6,6 +6,10 @@ import com.sureja.accountant.data.preferences.AuthStore
 import com.sureja.accountant.data.preferences.Session
 import com.sureja.accountant.domain.ParsedTransaction
 import com.sureja.accountant.domain.TransactionFingerprint
+import androidx.room.withTransaction
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.Flow
@@ -29,9 +33,14 @@ data class MonthRange(val from: String,val to: String) {
 
 data class ExpenseInput(val amountPaise: Long,val categoryId: String?,val paidByUserId: String,val paymentMethod: PaymentMethod,val accountId: String?,val merchant: String?,val note: String?,val occurredAt: String)
 
+data class SyncState(val running: Boolean = false, val error: String? = null)
+
 @Singleton
-class AccountantRepository @Inject constructor(private val dao: AccountantDao,private val api: AccountantApi,private val authStore: AuthStore,private val json: Json) {
+class AccountantRepository @Inject constructor(private val dao: AccountantDao,private val api: AccountantApi,private val authStore: AuthStore,private val json: Json, private val database: AccountantDatabase) {
     private val detectionMutex = Mutex()
+    private val syncMutex = Mutex()
+    private val _syncState = MutableStateFlow(SyncState())
+    val syncState = _syncState.asStateFlow()
 
     fun members() = dao.observeMembers(); fun categories() = dao.observeCategories(); fun allCategories() = dao.observeAllCategories(); fun accounts() = dao.observeAccounts();fun allAccounts()=dao.observeAllAccounts()
     fun recentCategoryUsage(sinceDate: LocalDate, userId: String? = null) = dao.observeRecentCategoryUsage(sinceDate.toString(), userId)
@@ -67,8 +76,12 @@ class AccountantRepository @Inject constructor(private val dao: AccountantDao,pr
         dao.upsertMembers(memberEntities)
         val currentUserId = authStore.userId.first()
         memberEntities.firstOrNull { it.id == currentUserId }?.let { authStore.updateDisplayName(it.displayName) }
-        dao.upsertCategories((categories as CategoriesResponse).categories.map { it.toEntity() })
-        dao.upsertAccounts((accounts as AccountsResponse).accounts.map { it.toEntity() })
+        database.withTransaction {
+            val dirtyCategories = dao.pendingCategories().map { it.id }.toSet()
+            val dirtyAccounts = dao.pendingAccounts().map { it.id }.toSet()
+            dao.upsertCategories((categories as CategoriesResponse).categories.filter { it.id !in dirtyCategories }.map { it.toEntity() })
+            dao.upsertAccounts((accounts as AccountsResponse).accounts.filter { it.id !in dirtyAccounts }.map { it.toEntity() })
+        }
     }
 
     suspend fun addExpense(input: ExpenseInput): String {
@@ -119,15 +132,60 @@ class AccountantRepository @Inject constructor(private val dao: AccountantDao,pr
         dao.upsertAccount(old.copy(active=active,updatedAt=OffsetDateTime.now().toString(),updatedBy=authStore.session()?.userId,version=old.version+1,syncStatus=if(old.syncStatus==SyncStatus.PENDING_CREATE)old.syncStatus else SyncStatus.PENDING_UPDATE))
     }
 
-    suspend fun sync(): Result<Unit> = runCatching {
+    suspend fun sync(): Result<Unit> = syncMutex.withLock {
+        if (authStore.session() == null) return@withLock Result.success(Unit)
+        _syncState.value = SyncState(running = true)
+        try {
         val pending=dao.pendingTransactions();val pendingCategories=dao.pendingCategories();val pendingAccounts=dao.pendingAccounts();val pendingRules=dao.pendingMerchantRules()
         val changes=pending.map { entity -> SyncChangeDto("transaction",if(entity.syncStatus==SyncStatus.PENDING_DELETE) "DELETE" else "UPSERT",json.encodeToJsonElement(entity.toDto()).jsonObject) }+
             pendingCategories.map{SyncChangeDto("category",if(it.syncStatus==SyncStatus.PENDING_DELETE)"DELETE" else "UPSERT",json.encodeToJsonElement(it.toDto()).jsonObject)}+
             pendingAccounts.map{SyncChangeDto("account",if(it.syncStatus==SyncStatus.PENDING_DELETE)"DELETE" else "UPSERT",json.encodeToJsonElement(it.toDto()).jsonObject)}+
             pendingRules.map{SyncChangeDto("merchant_rule",if(it.syncStatus==SyncStatus.PENDING_DELETE)"DELETE" else "UPSERT",json.encodeToJsonElement(it.toDto()).jsonObject)}
         val result=api.sync(SyncRequest(authStore.lastSync(),changes))
-        result.serverChanges.forEach { change -> when(change.entity){"transaction"->dao.upsertTransaction(json.decodeFromJsonElement<TransactionDto>(change.data).toEntity(SyncStatus.SYNCED));"category"->dao.upsertCategory(json.decodeFromJsonElement<CategoryDto>(change.data).toEntity());"account"->dao.upsertAccount(json.decodeFromJsonElement<AccountDto>(change.data).toEntity());"merchant_rule"->dao.upsertMerchantRule(json.decodeFromJsonElement<MerchantRuleDto>(change.data).toEntity());else->Unit} }
-        dao.markTransactionsSynced(pending.map { it.id });dao.markCategoriesSynced(pendingCategories.map{it.id});dao.markAccountsSynced(pendingAccounts.map{it.id});dao.markMerchantRulesSynced(pendingRules.map{it.id});authStore.setLastSync(result.serverTime);refreshCatalog()
+        database.withTransaction {
+            val dirtyTransactions = dao.pendingTransactions().associateBy { it.id }
+            val dirtyCategories = dao.pendingCategories().associateBy { it.id }
+            val dirtyAccounts = dao.pendingAccounts().associateBy { it.id }
+            val dirtyRules = dao.pendingMerchantRules().associateBy { it.id }
+            val sentTransactions = pending.associateBy { it.id }
+            val sentCategories = pendingCategories.associateBy { it.id }
+            val sentAccounts = pendingAccounts.associateBy { it.id }
+            val sentRules = pendingRules.associateBy { it.id }
+            result.serverChanges.forEach { change -> when(change.entity) {
+                "transaction" -> {
+                    val entity = json.decodeFromJsonElement<TransactionDto>(change.data).toEntity(SyncStatus.SYNCED)
+                    if (canApplySyncResponse(dirtyTransactions[entity.id], sentTransactions[entity.id])) dao.upsertTransaction(entity)
+                }
+                "category" -> {
+                    val entity = json.decodeFromJsonElement<CategoryDto>(change.data).toEntity()
+                    if (canApplySyncResponse(dirtyCategories[entity.id], sentCategories[entity.id])) dao.upsertCategory(entity)
+                }
+                "account" -> {
+                    val entity = json.decodeFromJsonElement<AccountDto>(change.data).toEntity()
+                    if (canApplySyncResponse(dirtyAccounts[entity.id], sentAccounts[entity.id])) dao.upsertAccount(entity)
+                }
+                "merchant_rule" -> {
+                    val entity = json.decodeFromJsonElement<MerchantRuleDto>(change.data).toEntity()
+                    if (canApplySyncResponse(dirtyRules[entity.id], sentRules[entity.id])) dao.upsertMerchantRule(entity)
+                }
+            } }
+            // Only acknowledge the exact snapshot uploaded, preserving edits made during the request.
+            dao.markTransactionsSynced(pending.filter { dirtyTransactions[it.id] == it }.map { it.id })
+            dao.markCategoriesSynced(pendingCategories.filter { dirtyCategories[it.id] == it }.map { it.id })
+            dao.markAccountsSynced(pendingAccounts.filter { dirtyAccounts[it.id] == it }.map { it.id })
+            dao.markMerchantRulesSynced(pendingRules.filter { dirtyRules[it.id] == it }.map { it.id })
+        }
+        authStore.setLastSync(result.serverTime)
+        refreshCatalog()
+        _syncState.value = SyncState()
+        Result.success(Unit)
+        } catch (cancelled: CancellationException) {
+            _syncState.value = SyncState()
+            throw cancelled
+        } catch (error: Exception) {
+            _syncState.value = SyncState(error = "Couldn't sync. Your changes are saved on this phone.")
+            Result.failure(error)
+        }
     }
 
     private val defaultCategories=listOf("groceries" to "Groceries","food" to "Food & Dining","household" to "Household","shopping" to "Shopping","fuel" to "Fuel","transport" to "Transport","medical" to "Medical","utilities" to "Utilities","entertainment" to "Entertainment","education" to "Education","travel" to "Travel","care" to "Personal Care","gifts" to "Gifts","investment" to "Investment","other" to "Other")
@@ -141,3 +199,5 @@ private fun CategoryEntity.toDto()=CategoryDto(id,name,icon,active,createdAt,upd
 private fun AccountEntity.toDto()=AccountDto(id,name,bankName,last4,ownerUserId,paymentMethod.name,active,createdAt,updatedAt,deletedAt,version,updatedBy)
 private fun MerchantRuleEntity.toDto()=MerchantRuleDto(id,merchantPattern,categoryId,createdByUserId,createdAt,updatedAt,deletedAt,version,updatedBy)
 private fun MerchantRuleDto.toEntity()=MerchantRuleEntity(id,merchantPattern,categoryId,createdByUserId?:updatedBy.orEmpty(),createdAt?:updatedAt?:OffsetDateTime.now().toString(),updatedAt?:OffsetDateTime.now().toString(),deletedAt,version,updatedBy,SyncStatus.SYNCED)
+
+internal fun <T> canApplySyncResponse(currentDirty: T?, uploaded: T?): Boolean = currentDirty == null || currentDirty == uploaded

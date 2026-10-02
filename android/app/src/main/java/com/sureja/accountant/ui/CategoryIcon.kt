@@ -24,7 +24,7 @@ fun categoryIcon(name: String): ImageVector {
         "care" in key -> Icons.Default.Spa
         "transport" in key || "travel" in key -> Icons.Default.DirectionsCar
         "utilit" in key || "bill" in key -> Icons.Default.ReceiptLong
-        "other" in key -> Icons.Default.MoreHoriz
+        "other" in key -> Icons.Default.Label
         else -> Icons.Default.Category
     }
 }

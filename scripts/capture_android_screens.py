@@ -51,6 +51,11 @@ def main():
         nodes = list(root.iter("node"))
         if any(n.get("password") == "true" or n.get("text") in ("Sign in", "Username", "PIN") for n in nodes):
             raise RuntimeError("Sign in manually before capturing; no authentication screenshot saved.")
+        for node in nodes:
+            if node.get("package") == "com.android.systemui" and node.get("text", "").strip():
+                resource = node.get("resource-id", "").lower()
+                if not any(name in resource for name in ("clock", "battery", "speed", "carrier")):
+                    raise RuntimeError("A system overlay is visible; wait for it to clear before capturing.")
         return nodes
 
     def tap(label, optional=False, bottom=False):
@@ -83,7 +88,7 @@ def main():
         for label, name in [("Transactions", "03-transactions"), ("Add", "04-add"), ("Reports", "05-reports")]:
             tap(label, bottom=True)
             capture(name)
-            if label == "Add" and tap("More", optional=True):
+            if label == "Add" and tap("Browse", optional=True):
                 capture("04-add-more-categories")
                 run("shell", "input", "keyevent", "4")
                 time.sleep(0.7)

@@ -32,7 +32,10 @@ import javax.inject.Inject
 sealed interface LoginState { data object Idle:LoginState; data object Loading:LoginState; data object Success:LoginState; data class Error(val message:String):LoginState }
 
 data class HomeState(val total:Long=0,val previousTotal:Long=0,val reviewCount:Int=0,val people:List<NamedAmount> = emptyList(),val categories:List<NamedAmount> = emptyList(),val recent:List<TransactionListItem> = emptyList(),val todayTotal:Long=0,val weekTotal:Long=0)
-@HiltViewModel class HomeViewModel @Inject constructor(repository: AccountantRepository,store:AuthStore): ViewModel() {
+@HiltViewModel class HomeViewModel @Inject constructor(private val repository: AccountantRepository,store:AuthStore): ViewModel() {
+    val syncState = repository.syncState
+    val lastSyncAt = store.lastSyncAt.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    fun syncNow() { viewModelScope.launch { repository.sync() } }
     val selectedMonth = MutableStateFlow(YearMonth.now())
     val profileName=combine(store.userId,store.displayName,repository.members()) { userId,savedName,members -> members.firstOrNull { it.id==userId }?.displayName ?: savedName }.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),"")
     private val today=LocalDate.now()

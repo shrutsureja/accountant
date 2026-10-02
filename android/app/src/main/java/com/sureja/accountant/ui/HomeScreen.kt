@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
@@ -37,6 +38,7 @@ fun HomeScreen(
     val state by viewModel.state.collectAsState()
     val month by viewModel.selectedMonth.collectAsState()
     val name by viewModel.profileName.collectAsState()
+    val syncState by viewModel.syncState.collectAsState()
     val currentMonth = month == YearMonth.now()
 
     LazyColumn(
@@ -45,11 +47,20 @@ fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(AccountantSpacing.base),
     ) {
         item {
-            Text(
-                "Good ${homeGreeting()}${if (name.isNotBlank()) ", $name" else ""}",
-                style = MaterialTheme.typography.titleLarge,
-            )
-            Spacer(Modifier.height(AccountantSpacing.base))
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Good ${homeGreeting()}${if (name.isNotBlank()) ", $name" else ""}",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                TextButton(onClick = viewModel::syncNow, enabled = !syncState.running) {
+                    if (syncState.running) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                    else Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(if (syncState.running) "Syncing…" else "Sync")
+                }
+            }
+            syncState.error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = AccountantColors.SecondaryText) }
             HomeMonthSelector(month, viewModel::previousMonth, viewModel::nextMonth)
             Text("${month.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} spending", style = MaterialTheme.typography.bodyMedium, color = AccountantColors.SecondaryText)
             MoneyText(state.total, Modifier.padding(top = AccountantSpacing.xs), fontSize = 40)

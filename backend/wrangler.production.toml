@@ -1,0 +1,19 @@
+name = "accountant-api"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+account_id = "552fb83dc41d7e9a61b0be7bc97471ea"
+workers_dev = false
+preview_urls = false
+routes = [{ pattern = "api.accountant.shrutsureja.com", custom_domain = true }]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "accountant-production"
+database_id = "9e01a016-4ab4-4d62-b9e8-54b9faf0dc02"
+migrations_dir = "migrations"
+
+[vars]
+ACCESS_TOKEN_TTL_SECONDS = "900"
+APP_MIN_VERSION_CODE = "1"
+APP_LATEST_VERSION_CODE = "3"
+APP_LATEST_VERSION_NAME = "1.1.1"

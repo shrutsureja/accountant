@@ -9,6 +9,12 @@ describe('authentication crypto', () => {
     expect(await verifyPin('654321', hash)).toBe(false);
   });
 
+  it('uses a work factor supported by deployed Cloudflare Workers', async () => {
+    const hash = await hashPin('987654');
+    expect(hash.split(':')[1]).toBe('100000');
+    expect(await verifyPin('987654', hash)).toBe(true);
+  });
+
   it('signs and verifies access tokens', async () => {
     const token = await createAccessToken({ sub: 'user-1', deviceId: 'device-1' }, 'test-secret', 60);
     const payload = await verifyAccessToken(token, 'test-secret');

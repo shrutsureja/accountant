@@ -23,7 +23,7 @@ Apply the local D1 schema before first use:
 npx wrangler d1 migrations apply accountant-db --local
 ```
 
-Seeded development logins are `shrut`, `mom`, and `dad`, displayed as Shrut, Alpa, and Hitesh respectively, each with PIN `123456`. Change the PINs before a real deployment.
+After all local migrations, development logins are `shrut`, `alpa`, and `hitesh`. The seed PIN is for local development only; production uses separate private credentials.
 
 ## Android
 
@@ -84,6 +84,8 @@ Amounts are integer paise throughout. PINs use salted PBKDF2 hashes supported by
 
 ## Private family APK builds
 
-Use `python3 scripts/build_apk.py --version 1.1.0 --code 2 --api-url https://api.accountant.shrutsureja.com/` to produce a signed `dist/Accountant-1.1.0-build-2-release.apk` locally. Nothing is uploaded. The cloud backend must be deployed before this URL can be used by family phones.
+Use `python3 scripts/build_apk.py --version 1.1.1 --code 3 --api-url https://api.accountant.shrutsureja.com/` to produce a signed `dist/Accountant-1.1.1-build-3-release.apk` locally. Nothing is uploaded. Production deployment uses the separate configuration described below; the family build is version 1.1.1/build 3.
 
 See [local build and update instructions](docs/local-apk-builds.md) for signing-key backup, debug builds, parent login names, and optional/mandatory app updates.
+
+Production configuration and private APK instructions: [Cloudflare deployment](docs/cloudflare-deployment.md).

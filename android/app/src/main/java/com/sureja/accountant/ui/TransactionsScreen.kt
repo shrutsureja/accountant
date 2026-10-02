@@ -3,6 +3,7 @@
 package com.sureja.accountant.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -31,11 +32,21 @@ fun TransactionsScreen(viewModel: TransactionsViewModel = hiltViewModel(), catal
     val categoryId by viewModel.category.collectAsState()
     val thisMonth by viewModel.thisMonth.collectAsState()
     val categories by catalog.categories.collectAsState()
+    val categoryUsage by catalog.categoryUsage.collectAsState()
     val members by catalog.members.collectAsState()
     val accounts by catalog.accounts.collectAsState()
     var picker by remember { mutableStateOf<TransactionPicker?>(null) }
     var editTarget by remember { mutableStateOf<TransactionListItem?>(null) }
     val groups = remember(transactions) { groupTransactions(transactions) }
+    val orderedCategories = remember(categories, categoryUsage) {
+        val sections = categoryPickerSections(categories, categoryUsage)
+        sections.frequent + sections.remaining
+    }
+    val displayedCategory = when (categoryId) {
+        UNCATEGORIZED_FILTER_ID -> "Not categorized"
+        null -> "Category"
+        else -> categories.firstOrNull { it.id == categoryId }?.name ?: "Category"
+    }
 
     Column(Modifier.fillMaxSize().padding(horizontal = AccountantSpacing.page)) {
         PageHeader("Transactions", modifier = Modifier.padding(top = AccountantSpacing.page, bottom = AccountantSpacing.base))
@@ -54,7 +65,7 @@ fun TransactionsScreen(viewModel: TransactionsViewModel = hiltViewModel(), catal
         ) {
             TransactionFilterChip("All", !thisMonth && personId == null && categoryId == null) { viewModel.clearFilters() }
             TransactionFilterChip("This month", thisMonth) { viewModel.thisMonth.value = !thisMonth }
-            TransactionFilterChip(categories.firstOrNull { it.id == categoryId }?.name ?: "Category", categoryId != null) { picker = TransactionPicker.CATEGORY }
+            TransactionFilterChip(displayedCategory, categoryId != null) { picker = TransactionPicker.CATEGORY }
             TransactionFilterChip(members.firstOrNull { it.id == personId }?.displayName ?: "Person", personId != null) { picker = TransactionPicker.PERSON }
         }
         if (groups.isEmpty()) {
@@ -76,12 +87,23 @@ fun TransactionsScreen(viewModel: TransactionsViewModel = hiltViewModel(), catal
 
     picker?.let { kind ->
         val options = when (kind) {
-            TransactionPicker.CATEGORY -> listOf(null to "All categories") + categories.map { it.id to it.name }
+            TransactionPicker.CATEGORY -> emptyList()
             TransactionPicker.PERSON -> listOf(null to "Everyone") + members.map { it.id to it.displayName }
         }
-        ModalBottomSheet(onDismissRequest = { picker = null }, containerColor = AccountantColors.Surface) {
+        if (kind == TransactionPicker.CATEGORY) {
+            CategoryPickerSheet(
+                title = "Filter by category",
+                categories = orderedCategories,
+                usage = categoryUsage,
+                selectedId = categoryId,
+                includeAll = true,
+                includeUncategorized = true,
+                onSelect = { viewModel.category.value = it; picker = null },
+                onDismiss = { picker = null },
+            )
+        } else ModalBottomSheet(onDismissRequest = { picker = null }, containerColor = AccountantColors.Surface) {
             Column(Modifier.fillMaxWidth().padding(horizontal = AccountantSpacing.page)) {
-                Text(if (kind == TransactionPicker.CATEGORY) "Filter by category" else "Filter by person", style = MaterialTheme.typography.titleLarge)
+                Text("Filter by person", style = MaterialTheme.typography.titleLarge)
                 Spacer(Modifier.height(AccountantSpacing.md))
                 androidx.compose.foundation.lazy.LazyColumn(Modifier.heightIn(max = 480.dp), contentPadding = PaddingValues(bottom = AccountantSpacing.lg)) {
                     items(options.size, key = { options[it].first ?: "all" }) { index ->
@@ -101,7 +123,7 @@ fun TransactionsScreen(viewModel: TransactionsViewModel = hiltViewModel(), catal
     }
 
     editTarget?.let { item ->
-        TransactionEditDialog(item, categories, members, accounts, viewModel, onDismiss = { editTarget = null })
+        TransactionEditDialog(item, orderedCategories, categoryUsage, members, accounts, viewModel, onDismiss = { editTarget = null })
     }
 }
 
@@ -117,7 +139,7 @@ private fun TransactionFilterChip(text: String, selected: Boolean, onClick: () -
 }
 
 @Composable
-private fun TransactionEditDialog(item: TransactionListItem, categories: List<CategoryEntity>, members: List<MemberEntity>, accounts: List<AccountEntity>, viewModel: TransactionsViewModel, onDismiss: () -> Unit) {
+private fun TransactionEditDialog(item: TransactionListItem, categories: List<CategoryEntity>, categoryUsage: List<CategoryUsage>, members: List<MemberEntity>, accounts: List<AccountEntity>, viewModel: TransactionsViewModel, onDismiss: () -> Unit) {
     var amount by remember(item.id) { mutableStateOf((item.amountPaise / 100.0).toString()) }
     var category by remember(item.id) { mutableStateOf(item.categoryId) }
     var member by remember(item.id) { mutableStateOf(item.paidByUserId) }
@@ -125,13 +147,14 @@ private fun TransactionEditDialog(item: TransactionListItem, categories: List<Ca
     var account by remember(item.id) { mutableStateOf(item.accountId) }
     var merchant by remember(item.id) { mutableStateOf(item.merchant.orEmpty()) }
     var note by remember(item.id) { mutableStateOf(item.note.orEmpty()) }
+    var chooseCategory by remember(item.id) { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Edit expense") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(AccountantSpacing.sm)) {
                 OutlinedTextField(amount, { amount = it.filter { char -> char.isDigit() || char == '.' } }, label = { Text("Amount") }, prefix = { Text("₹ ") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
-                SelectField("Category", categories, category, { category = it }, { it.name }, { it.id })
+                TransactionEditSelector("Category", categories.firstOrNull { it.id == category }?.name ?: "Not categorized") { chooseCategory = true }
                 SelectField("Paid by", members, member, { member = it }, { it.displayName }, { it.id })
                 SingleChoiceSegmentedButtonRow {
                     PaymentMethod.entries.forEachIndexed { index, method ->
@@ -151,4 +174,25 @@ private fun TransactionEditDialog(item: TransactionListItem, categories: List<Ca
             }
         },
     )
+    if (chooseCategory) CategoryPickerSheet(
+        title = "Choose category",
+        categories = categories,
+        usage = categoryUsage,
+        selectedId = category,
+        onSelect = { category = it; chooseCategory = false },
+        onDismiss = { chooseCategory = false },
+    )
+}
+
+@Composable
+private fun TransactionEditSelector(label: String, value: String, onClick: () -> Unit) {
+    Surface(onClick = onClick, shape = MaterialTheme.shapes.small, border = BorderStroke(1.dp, AccountantColors.Border), color = AccountantColors.Surface) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(horizontal = AccountantSpacing.base), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(label, style = MaterialTheme.typography.labelMedium, color = AccountantColors.SecondaryText)
+                Text(value, style = MaterialTheme.typography.bodyLarge)
+            }
+            Text("›", color = AccountantColors.SecondaryText)
+        }
+    }
 }

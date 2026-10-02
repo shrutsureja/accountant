@@ -8,8 +8,11 @@ data class CategoryPickerSections(
     val remaining: List<CategoryEntity>,
 )
 
-fun categoryPickerSections(categories: List<CategoryEntity>, usage: List<CategoryUsage>): CategoryPickerSections {
-    val selectable = categories.filter { it.active && it.name != "Not categorized" && it.name != "Uncategorized" }
+fun categoryPickerSections(categories: List<CategoryEntity>, usage: List<CategoryUsage>, limit: Int = 7): CategoryPickerSections {
+    val selectable = categories.filter {
+        it.active && !it.name.trim().equals("Not categorized", ignoreCase = true) &&
+            !it.name.trim().equals("Uncategorized", ignoreCase = true)
+    }
     val byId = selectable.associateBy { it.id }
     val frequent = usage.asSequence()
         .filter { it.useCount > 0 && it.categoryId in byId }
@@ -18,7 +21,7 @@ fun categoryPickerSections(categories: List<CategoryEntity>, usage: List<Categor
             .thenBy { it.categoryId })
         .map { byId.getValue(it.categoryId) }
         .distinctBy { it.id }
-        .take(5)
+        .take(limit)
         .toList()
     val frequentIds = frequent.mapTo(mutableSetOf()) { it.id }
     val remaining = selectable.filterNot { it.id in frequentIds }

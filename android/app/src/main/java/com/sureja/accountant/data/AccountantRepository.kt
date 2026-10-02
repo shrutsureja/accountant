@@ -30,7 +30,7 @@ data class ExpenseInput(val amountPaise: Long,val categoryId: String?,val paidBy
 @Singleton
 class AccountantRepository @Inject constructor(private val dao: AccountantDao,private val api: AccountantApi,private val authStore: AuthStore,private val json: Json) {
     fun members() = dao.observeMembers(); fun categories() = dao.observeCategories(); fun allCategories() = dao.observeAllCategories(); fun accounts() = dao.observeAccounts();fun allAccounts()=dao.observeAllAccounts()
-    fun recentCategoryUsage(sinceDate: LocalDate) = dao.observeRecentCategoryUsage(sinceDate.toString())
+    fun recentCategoryUsage(sinceDate: LocalDate, userId: String? = null) = dao.observeRecentCategoryUsage(sinceDate.toString(), userId)
     fun transactions(search: String="",member: String?=null,category: String?=null,range: MonthRange?=null) = dao.observeTransactions(search,member,category,range?.from,range?.to)
     fun reviewQueue() = dao.observeReviewQueue()
     fun total(range: MonthRange=MonthRange.current()) = dao.observeTotal(range.from,range.to)

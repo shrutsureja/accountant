@@ -13,10 +13,13 @@ interface AccountantDao {
     @Query("SELECT * FROM categories WHERE deletedAt IS NULL ORDER BY active DESC,name") fun observeAllCategories(): Flow<List<CategoryEntity>>
     @Query("SELECT * FROM categories WHERE deletedAt IS NULL ORDER BY name") suspend fun categories(): List<CategoryEntity>
     @Query("SELECT * FROM categories WHERE syncStatus!='SYNCED'") suspend fun pendingCategories(): List<CategoryEntity>
-    @Query("""SELECT categoryId, COUNT(*) AS useCount FROM transactions
-        WHERE categoryId IS NOT NULL AND status='CONFIRMED' AND deletedAt IS NULL
-        AND date(occurredAt) >= date(:sinceDate)
-        GROUP BY categoryId""") fun observeRecentCategoryUsage(sinceDate: String): Flow<List<CategoryUsage>>
+    @Query("""SELECT t.categoryId, COUNT(*) AS useCount FROM transactions t
+        JOIN categories c ON c.id=t.categoryId AND c.active=1 AND c.deletedAt IS NULL
+        WHERE t.categoryId IS NOT NULL AND t.status='CONFIRMED' AND t.deletedAt IS NULL
+        AND lower(trim(c.name)) NOT IN ('not categorized','uncategorized')
+        AND (:userId IS NULL OR t.paidByUserId=:userId)
+        AND date(t.occurredAt) >= date(:sinceDate)
+        GROUP BY t.categoryId""") fun observeRecentCategoryUsage(sinceDate: String, userId: String? = null): Flow<List<CategoryUsage>>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertCategories(items: List<CategoryEntity>)
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertCategory(item: CategoryEntity)
 
@@ -34,7 +37,7 @@ interface AccountantDao {
         WHERE t.deletedAt IS NULL AND t.status='CONFIRMED' AND
         (:search='' OR t.merchant LIKE '%' || :search || '%' OR t.note LIKE '%' || :search || '%' OR c.name LIKE '%' || :search || '%' OR m.displayName LIKE '%' || :search || '%') AND
         (:memberId IS NULL OR t.paidByUserId=:memberId) AND
-        (:categoryId IS NULL OR t.categoryId=:categoryId) AND
+        (:categoryId IS NULL OR (:categoryId='__uncategorized_filter__' AND t.categoryId IS NULL) OR t.categoryId=:categoryId) AND
         (:fromDate IS NULL OR t.occurredAt>=:fromDate) AND
         (:toDate IS NULL OR t.occurredAt<:toDate)
         ORDER BY t.occurredAt DESC

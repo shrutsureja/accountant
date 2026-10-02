@@ -52,6 +52,7 @@ private data class ReviewDraft(
 fun ReviewScreen(onBack: () -> Unit, viewModel: ReviewViewModel = hiltViewModel(), catalog: CatalogViewModel = hiltViewModel()) {
     val transactions by viewModel.items.collectAsState()
     val categories by catalog.categories.collectAsState()
+    val categoryUsage by catalog.categoryUsage.collectAsState()
     val members by catalog.members.collectAsState()
     val accounts by catalog.accounts.collectAsState()
     var draft by remember { mutableStateOf<ReviewDraft?>(null) }
@@ -112,8 +113,18 @@ fun ReviewScreen(onBack: () -> Unit, viewModel: ReviewViewModel = hiltViewModel(
             )
         } else {
             val kind = selector!!
+            if (kind == ReviewSelector.CATEGORY) {
+                CategoryPickerSheet(
+                    title = "Choose category",
+                    categories = categories,
+                    usage = categoryUsage,
+                    selectedId = current.categoryId,
+                    onSelect = { chosen -> draft = current.copy(categoryId = chosen); selector = null },
+                    onDismiss = { selector = null },
+                )
+            } else {
             val options = when (kind) {
-                ReviewSelector.CATEGORY -> categories.map { it.id to it.name }
+                ReviewSelector.CATEGORY -> emptyList()
                 ReviewSelector.PERSON -> members.map { it.id to it.displayName }
                 ReviewSelector.ACCOUNT -> listOf("" to "No account") + accounts.filter { it.active && it.paymentMethod == current.payment }.map { it.id to it.name }
             }
@@ -135,6 +146,7 @@ fun ReviewScreen(onBack: () -> Unit, viewModel: ReviewViewModel = hiltViewModel(
                         }
                     }
                 }
+            }
             }
         }
     }
@@ -182,7 +194,8 @@ private fun ReviewEditSheet(
                 singleLine = true,
                 shape = MaterialTheme.shapes.small,
             )
-            ReviewEditSelector("Category", categories.firstOrNull { it.id == draft.categoryId }?.name ?: "Choose category") { onSelect(ReviewSelector.CATEGORY) }
+            if (draft.categoryId == null) ReviewEditSelector("Category", "Not categorized · Choose category", highlighted = true) { onSelect(ReviewSelector.CATEGORY) }
+            else ReviewEditSelector("Category", categories.firstOrNull { it.id == draft.categoryId }?.name ?: "Choose category") { onSelect(ReviewSelector.CATEGORY) }
             ReviewEditSelector("Paid by", members.firstOrNull { it.id == draft.memberId }?.displayName ?: "Choose person") { onSelect(ReviewSelector.PERSON) }
             Row(horizontalArrangement = Arrangement.spacedBy(AccountantSpacing.sm)) {
                 PaymentMethod.entries.forEach { method ->
@@ -206,8 +219,8 @@ private fun ReviewEditSheet(
 }
 
 @Composable
-private fun ReviewEditSelector(label: String, value: String, onClick: () -> Unit) {
-    Surface(onClick = onClick, shape = MaterialTheme.shapes.small, border = BorderStroke(1.dp, AccountantColors.Border), color = AccountantColors.Surface) {
+private fun ReviewEditSelector(label: String, value: String, highlighted: Boolean = false, onClick: () -> Unit) {
+    Surface(onClick = onClick, shape = MaterialTheme.shapes.small, border = BorderStroke(1.dp, if (highlighted) AccountantColors.Blue else AccountantColors.Border), color = if (highlighted) AccountantColors.BlueLight else AccountantColors.Surface) {
         Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(horizontal = AccountantSpacing.base), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(label, style = MaterialTheme.typography.labelMedium, color = AccountantColors.SecondaryText)

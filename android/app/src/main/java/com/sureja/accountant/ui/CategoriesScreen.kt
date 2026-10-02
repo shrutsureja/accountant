@@ -9,7 +9,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -54,7 +53,7 @@ fun CategoriesScreen(onBack: () -> Unit, viewModel: CatalogViewModel = hiltViewM
                     Row(Modifier.fillMaxWidth().heightIn(min = 60.dp), verticalAlignment = Alignment.CenterVertically) {
                         Surface(shape = MaterialTheme.shapes.small, color = AccountantColors.BlueLight) {
                             Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
-                                Icon(Icons.Default.Category, contentDescription = null, tint = AccountantColors.Blue)
+                                CategoryIcon(category.name)
                             }
                         }
                         Column(Modifier.weight(1f).padding(horizontal = AccountantSpacing.md)) {

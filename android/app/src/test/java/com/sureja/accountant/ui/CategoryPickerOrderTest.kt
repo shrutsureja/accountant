@@ -22,10 +22,10 @@ class CategoryPickerOrderTest {
         assertEquals(listOf("Food"), sections.remaining.map { it.name })
     }
 
-    @Test fun frequentListIsLimitedToFive() {
+    @Test fun frequentListIsLimitedToSeven() {
         val categories = (1..7).map { category("c$it", "Category $it") }
         val sections = categoryPickerSections(categories, (1..7).map { CategoryUsage("c$it", it) })
-        assertEquals(listOf("c7", "c6", "c5", "c4", "c3"), sections.frequent.map { it.id })
-        assertEquals(listOf("c1", "c2"), sections.remaining.map { it.id })
+        assertEquals(listOf("c7", "c6", "c5", "c4", "c3", "c2", "c1"), sections.frequent.map { it.id })
+        assertEquals(emptyList<String>(), sections.remaining.map { it.id })
     }
 }

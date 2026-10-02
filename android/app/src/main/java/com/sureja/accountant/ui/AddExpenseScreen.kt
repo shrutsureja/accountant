@@ -14,6 +14,9 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -34,7 +37,7 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
-private enum class ExpenseSelection { CATEGORY, MEMBER, ACCOUNT }
+private enum class ExpenseSelection { CATEGORY, ACCOUNT }
 private data class ExpenseOption(val id: String?, val label: String, val detail: String? = null, val section: String? = null)
 
 @Composable
@@ -52,6 +55,13 @@ fun AddExpenseScreen(onSaved: () -> Unit, viewModel: AddViewModel = hiltViewMode
     var note by rememberSaveable { mutableStateOf("") }
     var selector by remember { mutableStateOf<ExpenseSelection?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
+    var showMoreDetails by rememberSaveable { mutableStateOf(false) }
+    val categorySections = remember(state.categories, state.categoryUsage) {
+        categoryPickerSections(state.categories, state.categoryUsage)
+    }
+    val orderedCategories = categorySections.frequent + categorySections.remaining
+    val quickCategories = orderedCategories.take(7)
+    val moreCategories = orderedCategories.drop(7)
 
     LaunchedEffect(state.members, state.currentUserId) {
         if (memberId == null && state.currentUserId != null) {
@@ -62,7 +72,6 @@ fun AddExpenseScreen(onSaved: () -> Unit, viewModel: AddViewModel = hiltViewMode
 
     val selectedDate = LocalDate.parse(dateText)
     val selectedCategory = state.categories.firstOrNull { it.id == categoryId }?.name ?: "Choose category"
-    val selectedMember = state.members.firstOrNull { it.id == memberId }?.displayName ?: "Choose person"
     val eligibleAccounts = state.accounts.filter { it.active && it.paymentMethod == payment }
     val selectedAccount = eligibleAccounts.firstOrNull { it.id == accountId }?.let {
         listOfNotNull(it.name, it.last4?.let { last4 -> "••$last4" }).joinToString("  ")
@@ -72,7 +81,7 @@ fun AddExpenseScreen(onSaved: () -> Unit, viewModel: AddViewModel = hiltViewMode
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
-            Surface(color = MaterialTheme.colorScheme.background) {
+            Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.imePadding()) {
                 PrimaryButton(
                     text = if (state.saving) "Saving…" else "Save expense",
                     onClick = {
@@ -91,50 +100,70 @@ fun AddExpenseScreen(onSaved: () -> Unit, viewModel: AddViewModel = hiltViewMode
         ) {
             item { PageHeader("Add expense") }
             item { ExpenseAmountInput(amount) { amount = it } }
-            item { ExpenseSelector("Category", selectedCategory) { selector = ExpenseSelection.CATEGORY } }
-            item { ExpenseSelector("Paid by", selectedMember) { selector = ExpenseSelection.MEMBER } }
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(AccountantSpacing.sm)) {
+                    Text("Category", style = MaterialTheme.typography.labelLarge)
+                    CategoryQuickGrid(
+                        categories = quickCategories,
+                        selectedId = categoryId,
+                        showMore = moreCategories.isNotEmpty(),
+                        onSelect = { categoryId = it },
+                        onMore = { selector = ExpenseSelection.CATEGORY },
+                    )
+                }
+            }
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(AccountantSpacing.sm)) {
+                    Text("Paid by", style = MaterialTheme.typography.labelLarge)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(AccountantSpacing.sm)) {
+                        state.members.take(3).forEach { member ->
+                            QuickChoiceChip(
+                                member.displayName,
+                                selected = memberId == member.id,
+                                modifier = Modifier.weight(1f),
+                                onClick = { memberId = member.id },
+                            )
+                        }
+                    }
+                }
+            }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(AccountantSpacing.sm)) {
                     Text("Payment", style = MaterialTheme.typography.labelLarge)
                     Row(horizontalArrangement = Arrangement.spacedBy(AccountantSpacing.sm)) {
                         PaymentMethod.entries.forEach { method ->
                             val selected = method == payment
-                            Surface(
+                            QuickChoiceChip(
+                                if (method == PaymentMethod.UPI) "UPI" else method.name.lowercase().replaceFirstChar(Char::uppercase),
+                                selected = selected,
+                                modifier = Modifier.weight(1f),
                                 onClick = { payment = method; paymentChanged = true; accountId = null },
-                                modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                                shape = MaterialTheme.shapes.small,
-                                color = if (selected) AccountantColors.BlueLight else AccountantColors.Surface,
-                                border = BorderStroke(1.dp, if (selected) AccountantColors.Blue else AccountantColors.Border),
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text(
-                                        if (method == PaymentMethod.UPI) "UPI" else method.name.lowercase().replaceFirstChar(Char::uppercase),
-                                        style = MaterialTheme.typography.labelLarge,
-                                        color = if (selected) AccountantColors.BlueDark else AccountantColors.Text,
-                                    )
-                                }
-                            }
+                            )
                         }
                     }
                 }
             }
-            if (payment != PaymentMethod.CASH) item {
-                ExpenseSelector("Account (optional)", selectedAccount) { selector = ExpenseSelection.ACCOUNT }
+            item {
+                TextButton(onClick = { showMoreDetails = !showMoreDetails }, contentPadding = PaddingValues(horizontal = 0.dp)) {
+                    Text(if (showMoreDetails) "Fewer details" else "More details")
+                    Icon(if (showMoreDetails) Icons.Default.ExpandLess else Icons.Default.ExpandMore, contentDescription = null)
+                }
             }
-            item { ExpenseSelector("Date", dateLabel(selectedDate)) { showDatePicker = true } }
-            item { ExpenseTextInput("Merchant (optional)", "Where was this spent?", merchant, { merchant = it }) }
-            item { ExpenseTextInput("Note (optional)", "Add a note", note, { note = it }, singleLine = false) }
+            if (showMoreDetails) {
+                item { ExpenseSelector("Date", dateLabel(selectedDate)) { showDatePicker = true } }
+                if (payment != PaymentMethod.CASH) item {
+                    ExpenseSelector("Account (optional)", selectedAccount) { selector = ExpenseSelection.ACCOUNT }
+                }
+                item { ExpenseTextInput("Merchant (optional)", "Where was this spent?", merchant, { merchant = it }) }
+                item { ExpenseTextInput("Note (optional)", "Add a note", note, { note = it }, singleLine = false) }
+            }
             state.error?.let { error -> item { ErrorBanner(error) } }
         }
     }
 
     selector?.let { kind ->
         val options = when (kind) {
-            ExpenseSelection.CATEGORY -> categoryPickerSections(state.categories, state.categoryUsage).let { sections ->
-                sections.frequent.mapIndexed { index, category -> ExpenseOption(category.id, category.name, section = if (index == 0) "Frequently used" else null) } +
-                    sections.remaining.mapIndexed { index, category -> ExpenseOption(category.id, category.name, section = if (index == 0 && sections.frequent.isNotEmpty()) "All categories" else null) }
-            }
-            ExpenseSelection.MEMBER -> state.members.map { ExpenseOption(it.id, it.displayName) }
+            ExpenseSelection.CATEGORY -> moreCategories.map { ExpenseOption(it.id, it.name) }
             ExpenseSelection.ACCOUNT -> listOf(ExpenseOption(null, "No account")) + eligibleAccounts.map {
                 ExpenseOption(it.id, it.name, it.last4?.let { last4 -> "••$last4" })
             }
@@ -142,20 +171,17 @@ fun AddExpenseScreen(onSaved: () -> Unit, viewModel: AddViewModel = hiltViewMode
         ExpenseSelectorSheet(
             title = when (kind) {
                 ExpenseSelection.CATEGORY -> "Choose category"
-                ExpenseSelection.MEMBER -> "Who paid?"
                 ExpenseSelection.ACCOUNT -> "Choose account"
             },
             options = options,
             selectedId = when (kind) {
                 ExpenseSelection.CATEGORY -> categoryId
-                ExpenseSelection.MEMBER -> memberId
                 ExpenseSelection.ACCOUNT -> accountId
             },
             searchable = kind == ExpenseSelection.CATEGORY,
             onSelect = { chosen ->
                 when (kind) {
                     ExpenseSelection.CATEGORY -> categoryId = chosen
-                    ExpenseSelection.MEMBER -> if (chosen != null) memberId = chosen
                     ExpenseSelection.ACCOUNT -> accountId = chosen
                 }
                 selector = null
@@ -180,6 +206,56 @@ fun AddExpenseScreen(onSaved: () -> Unit, viewModel: AddViewModel = hiltViewMode
             },
             dismissButton = { TextButton({ showDatePicker = false }) { Text("Cancel") } },
         ) { DatePicker(datePickerState) }
+    }
+}
+
+@Composable
+private fun CategoryQuickGrid(
+    categories: List<com.sureja.accountant.data.local.CategoryEntity>,
+    selectedId: String?,
+    showMore: Boolean,
+    onSelect: (String) -> Unit,
+    onMore: () -> Unit,
+) {
+    val tiles = categories.map { it.id to it.name } + if (showMore) listOf(null to "More") else emptyList()
+    Column(verticalArrangement = Arrangement.spacedBy(AccountantSpacing.sm)) {
+        tiles.chunked(2).forEach { row ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(AccountantSpacing.sm)) {
+                row.forEach { (id, name) ->
+                    val selected = id != null && id == selectedId
+                    Surface(
+                        onClick = { if (id == null) onMore() else onSelect(id) },
+                        modifier = Modifier.weight(1f).heightIn(min = 50.dp),
+                        shape = MaterialTheme.shapes.small,
+                        color = if (selected) AccountantColors.BlueLight else AccountantColors.Surface,
+                        border = BorderStroke(1.dp, if (selected) AccountantColors.Blue else AccountantColors.Border),
+                    ) {
+                        Row(Modifier.fillMaxSize().padding(horizontal = AccountantSpacing.sm), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                            if (id == null) Icon(Icons.Default.MoreHoriz, contentDescription = null, tint = AccountantColors.SecondaryText)
+                            else CategoryIcon(name, tint = if (selected) AccountantColors.Blue else AccountantColors.SecondaryText)
+                            Spacer(Modifier.width(AccountantSpacing.xs))
+                            Text(name, style = MaterialTheme.typography.labelMedium, color = if (selected) AccountantColors.BlueDark else AccountantColors.Text, maxLines = 1)
+                        }
+                    }
+                }
+                if (row.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuickChoiceChip(label: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier.heightIn(min = 48.dp),
+        shape = MaterialTheme.shapes.small,
+        color = if (selected) AccountantColors.BlueLight else AccountantColors.Surface,
+        border = BorderStroke(1.dp, if (selected) AccountantColors.Blue else AccountantColors.Border),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(label, style = MaterialTheme.typography.labelLarge, color = if (selected) AccountantColors.BlueDark else AccountantColors.Text, maxLines = 1)
+        }
     }
 }
 

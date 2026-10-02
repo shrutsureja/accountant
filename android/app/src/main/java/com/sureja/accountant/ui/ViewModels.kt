@@ -54,7 +54,12 @@ data class HomeState(val total:Long=0,val previousTotal:Long=0,val reviewCount:I
 data class AddState(val members:List<MemberEntity> = emptyList(),val categories:List<CategoryEntity> = emptyList(),val accounts:List<AccountEntity> = emptyList(),val categoryUsage:List<CategoryUsage> = emptyList(),val currentUserId:String?=null,val saving:Boolean=false,val saved:Boolean=false,val error:String?=null)
 @HiltViewModel class AddViewModel @Inject constructor(private val repository: AccountantRepository,store:AuthStore): ViewModel() {
     private val progress=MutableStateFlow(AddState())
-    private val catalog=combine(repository.members(),repository.categories(),repository.accounts(),repository.recentCategoryUsage(LocalDate.now().minusDays(90))) { m,c,a,usage -> AddState(members=m,categories=c,accounts=a,categoryUsage=usage) }
+    private val sinceDate=LocalDate.now().minusDays(90)
+    private val categoryUsage=store.userId.flatMapLatest { userId ->
+        val household=repository.recentCategoryUsage(sinceDate)
+        if(userId==null) household else combine(repository.recentCategoryUsage(sinceDate,userId),household) { personal,all -> if(personal.size>=7)personal else all }
+    }
+    private val catalog=combine(repository.members(),repository.categories(),repository.accounts(),categoryUsage) { m,c,a,usage -> AddState(members=m,categories=c,accounts=a,categoryUsage=usage) }
     val state=combine(catalog,store.userId,progress) { catalogState,userId,p -> catalogState.copy(currentUserId=userId,saving=p.saving,saved=p.saved,error=p.error) }.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),AddState())
     val lastPayment=store.lastPaymentMethod.map { runCatching { PaymentMethod.valueOf(it) }.getOrDefault(PaymentMethod.CASH) }
         .stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),PaymentMethod.CASH)
@@ -101,10 +106,15 @@ data class ReportsState(val total:Long=0,val previousTotal:Long=0,val categories
     fun nextMonth(){if(selectedMonth.value<YearMonth.now())selectedMonth.value=selectedMonth.value.plusMonths(1)}
 }
 
-@HiltViewModel class CatalogViewModel @Inject constructor(private val repository: AccountantRepository):ViewModel() {
+@HiltViewModel class CatalogViewModel @Inject constructor(private val repository: AccountantRepository,store:AuthStore):ViewModel() {
     val categories=repository.allCategories().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
     val accounts=repository.allAccounts().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
     val members=repository.members().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
+    private val sinceDate=LocalDate.now().minusDays(90)
+    val categoryUsage=store.userId.flatMapLatest { userId ->
+        val household=repository.recentCategoryUsage(sinceDate)
+        if(userId==null) household else combine(repository.recentCategoryUsage(sinceDate,userId),household) { personal,all -> if(personal.size>=7)personal else all }
+    }.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
     fun addCategory(name:String)=viewModelScope.launch{if(name.isNotBlank())repository.addCategory(name)}
     fun renameCategory(item:CategoryEntity,name:String)=viewModelScope.launch{if(name.isNotBlank())repository.renameCategory(item.id,name)}
     fun toggleCategory(item:CategoryEntity)=viewModelScope.launch{repository.setCategoryActive(item.id,!item.active)}

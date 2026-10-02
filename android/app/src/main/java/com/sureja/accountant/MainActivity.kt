@@ -45,8 +45,8 @@ class MainActivity : FragmentActivity() {
 
 @Composable
 private fun MainActivity.AccountantRoot(biometric:((()->Unit),(()->Unit))->Unit,session:SessionViewModel=hiltViewModel()) {
-    val hasSession by session.hasSession.collectAsState();var unlocked by remember{mutableStateOf(false)}
-    LaunchedEffect(hasSession){if(hasSession&&!unlocked)biometric({unlocked=true},{})}
+    val hasSession by session.hasSession.collectAsState();val biometricEnabled by session.biometricEnabled.collectAsState();var unlocked by remember{mutableStateOf(false)}
+    LaunchedEffect(hasSession,biometricEnabled){if(!hasSession)unlocked=false else if(BuildConfig.DEBUG && BuildConfig.LOCAL_AUTH_BYPASS)unlocked=true else if(!biometricEnabled)unlocked=true else if(!unlocked)biometric({unlocked=true},{})}
     when { !hasSession -> LoginScreen(session);!unlocked -> LockedScreen({biometric({unlocked=true},{})},{session.logout()});else -> MainShell(session) }
 }
 
@@ -55,6 +55,8 @@ private fun MainActivity.MainShell(session:SessionViewModel) {
     val activity = this
     val nav = rememberNavController()
     val displayName by session.displayName.collectAsState()
+    val lastSyncAt by session.lastSyncAt.collectAsState()
+    val biometricEnabled by session.biometricEnabled.collectAsState()
     val items = listOf(
         AccountantDestination("home", "Home", Icons.Default.Home),
         AccountantDestination("transactions", "Transactions", Icons.Default.ReceiptLong),
@@ -83,6 +85,9 @@ private fun MainActivity.MainShell(session:SessionViewModel) {
             composable("profile") {
                 ProfileScreen(
                     displayName = displayName,
+                    lastSyncAt = lastSyncAt,
+                    biometricEnabled = biometricEnabled,
+                    onBiometricChange = session::setBiometricEnabled,
                     onLogout = { session.logout() },
                     onSync = { SyncWorker.now(activity); Toast.makeText(activity, "Sync scheduled", Toast.LENGTH_SHORT).show() },
                     onExport = activity::exportCsv,

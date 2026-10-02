@@ -55,7 +55,7 @@ fun ReportsScreen(viewModel: ReportsViewModel = hiltViewModel()) {
         }
         PrimaryTabRow(selectedTabIndex = tab, containerColor = AccountantColors.Surface, contentColor = AccountantColors.Blue) {
             listOf("Overview", "Categories", "People").forEachIndexed { index, label ->
-                Tab(selected = tab == index, onClick = { tab = index }, text = { Text(label) })
+                Tab(selected = tab == index, onClick = { tab = index }, text = { Text(label) }, selectedContentColor = AccountantColors.Blue, unselectedContentColor = AccountantColors.SecondaryText)
             }
         }
         LazyColumn(
@@ -152,6 +152,7 @@ private fun RankedSpendRow(item: NamedAmount, total: Long) {
                 modifier = Modifier.fillMaxWidth().height(5.dp),
                 color = AccountantColors.Blue,
                 trackColor = AccountantColors.MutedSurface,
+                drawStopIndicator = {},
             )
         }
         Text("${(share * 100).toInt()}% of spending", style = MaterialTheme.typography.bodySmall, color = AccountantColors.SecondaryText)

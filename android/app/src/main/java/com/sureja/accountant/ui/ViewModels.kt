@@ -21,10 +21,13 @@ import javax.inject.Inject
 @HiltViewModel class SessionViewModel @Inject constructor(private val repository: AccountantRepository,private val store: AuthStore): ViewModel() {
     val hasSession=store.hasSession.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),false)
     val displayName=store.displayName.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),"")
+    val lastSyncAt=store.lastSyncAt.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),null)
+    val biometricEnabled=store.biometricEnabled.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),true)
     private val _loginState=MutableStateFlow<LoginState>(LoginState.Idle); val loginState=_loginState.asStateFlow()
     init { viewModelScope.launch { repository.seedForOfflinePreview() } }
     fun login(username:String,pin:String) { if(username.isBlank()||pin.length<4)return; viewModelScope.launch { _loginState.value=LoginState.Loading; _loginState.value=repository.login(username,pin,"${Build.MANUFACTURER} ${Build.MODEL}").fold({LoginState.Success},{LoginState.Error(it.message?:"Could not sign in")}) } }
     fun logout()=viewModelScope.launch { repository.logout() }
+    fun setBiometricEnabled(enabled:Boolean)=viewModelScope.launch { store.setBiometric(enabled) }
 }
 sealed interface LoginState { data object Idle:LoginState; data object Loading:LoginState; data object Success:LoginState; data class Error(val message:String):LoginState }
 
@@ -103,6 +106,7 @@ data class ReportsState(val total:Long=0,val previousTotal:Long=0,val categories
     val accounts=repository.allAccounts().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
     val members=repository.members().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
     fun addCategory(name:String)=viewModelScope.launch{if(name.isNotBlank())repository.addCategory(name)}
+    fun renameCategory(item:CategoryEntity,name:String)=viewModelScope.launch{if(name.isNotBlank())repository.renameCategory(item.id,name)}
     fun toggleCategory(item:CategoryEntity)=viewModelScope.launch{repository.setCategoryActive(item.id,!item.active)}
     fun addAccount(name:String,bank:String,last4:String,owner:String?,payment:PaymentMethod)=viewModelScope.launch{if(name.isNotBlank()&&(last4.isBlank()||last4.length==4))repository.addAccount(name,bank,last4,owner,payment)}
     fun toggleAccount(item:AccountEntity)=viewModelScope.launch{repository.setAccountActive(item.id,!item.active)}

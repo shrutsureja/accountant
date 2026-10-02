@@ -98,6 +98,10 @@ class AccountantRepository @Inject constructor(private val dao: AccountantDao,pr
         val now=OffsetDateTime.now().toString();val user=authStore.session()?.userId
         dao.upsertCategory(CategoryEntity(UUID.randomUUID().toString(),name.trim(),createdAt=now,updatedAt=now,updatedBy=user,syncStatus=SyncStatus.PENDING_CREATE))
     }
+    suspend fun renameCategory(id:String,name:String) {
+        val old=dao.categories().firstOrNull { it.id==id } ?: return
+        dao.upsertCategory(old.copy(name=name.trim(),updatedAt=OffsetDateTime.now().toString(),updatedBy=authStore.session()?.userId,version=old.version+1,syncStatus=if(old.syncStatus==SyncStatus.PENDING_CREATE)old.syncStatus else SyncStatus.PENDING_UPDATE))
+    }
     suspend fun setCategoryActive(id:String,active:Boolean) {
         val old=dao.categories().firstOrNull{it.id==id}?:return
         dao.upsertCategory(old.copy(active=active,updatedAt=OffsetDateTime.now().toString(),updatedBy=authStore.session()?.userId,version=old.version+1,syncStatus=if(old.syncStatus==SyncStatus.PENDING_CREATE)old.syncStatus else SyncStatus.PENDING_UPDATE))

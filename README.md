@@ -70,6 +70,8 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 Check `http://127.0.0.1:8787/health` on the computer first. ADB reverse forwarding disappears when the phone disconnects; reconnect it and run `adb reverse tcp:8787 tcp:8787` again. If the Worker stops, restart it. The emulator uses the default `10.0.2.2` address instead and does not need USB forwarding.
 
+For local UI testing on your own debug build, add `-PLOCAL_AUTH_BYPASS=true` to the Gradle command to skip the biometric prompt. Login with the account PIN is still required. The flag defaults to `false`, and release builds always disable the bypass. Do not distribute a debug APK built with the bypass enabled.
+
 ## UI redesign
 
 The [phased UI redesign plan](docs/ui-redesign-plan.md) and [visual reference](docs/design/accountant-ui-reference.png) are checked in for review. The redesign keeps the existing Compose navigation, ViewModels, Room data flow, and backend contracts. It starts with a blue-neutral theme and shared components, then proceeds through Add Expense, simple/detailed Home, Transactions, Needs Review, Reports, and Profile/Categories. Each phase is built and tested before the next begins.

@@ -27,6 +27,15 @@ android {
         buildConfigField("String", "API_BASE_URL", "\"${providers.gradleProperty("API_BASE_URL").orNull ?: "http://10.0.2.2:8787/"}\"")
     }
     buildFeatures { compose = true; buildConfig = true }
+    buildTypes {
+        getByName("debug") {
+            val bypass = providers.gradleProperty("LOCAL_AUTH_BYPASS").orNull?.toBooleanStrictOrNull() ?: false
+            buildConfigField("boolean", "LOCAL_AUTH_BYPASS", bypass.toString())
+        }
+        getByName("release") {
+            buildConfigField("boolean", "LOCAL_AUTH_BYPASS", "false")
+        }
+    }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }

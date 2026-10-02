@@ -1,3 +1,4 @@
+import { appVersionPolicy, requireSupportedVersion } from './version-policy';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import type { Bindings, Variables } from './types';
@@ -10,8 +11,10 @@ import { requireAuth } from './middleware/auth';
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
-app.use('*', cors({ origin: '*', allowHeaders: ['Authorization','Content-Type'], allowMethods: ['GET','POST','PATCH','DELETE','OPTIONS'] }));
+app.use('*', cors({ origin: '*', allowHeaders: ['Authorization','Content-Type','X-App-Version-Code'], allowMethods: ['GET','POST','PATCH','DELETE','OPTIONS'] }));
 app.get('/health', (c) => c.json({ status: 'ok', service: 'accountant-api' }));
+app.get('/api/v1/app/version', (c) => c.json(appVersionPolicy(c.env)));
+app.use('/api/v1/*', requireSupportedVersion);
 app.route('/api/v1/auth', authRoutes);
 app.use('/api/v1/*', requireAuth);
 app.route('/api/v1/transactions', transactionRoutes);

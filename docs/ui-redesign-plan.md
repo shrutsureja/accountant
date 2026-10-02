@@ -45,3 +45,11 @@ For repeatable device comparison, run `python3 scripts/capture_android_screens.p
 Device verification remains pending because the Redmi was disconnected during this pass. Once reconnected: install the new APK, check notification access is enabled, run screenshot capture, and verify a genuine low-value bank/UPI payment enters Needs Review exactly once. Notifications already dismissed cannot be recovered through this listener.
 
 Validation: `:app:testDebugUnitTest` passed (31 tests, zero failures) and `:app:assembleDebug` passed with the local backend/debug biometric-bypass configuration. Screenshot script syntax/help checks passed and its disconnected-device guard was exercised. Full script navigation and actual bank notification delivery are pending device testing.
+
+## Shared family interface and private builds — 2 October 2026
+
+Removed the identity-dependent Home modes: every member now sees the same detailed dashboard. Parent login names are `alpa` and `hitesh`; local migration 0004 preserves IDs and expense ownership. Add Expense has a compact four-column category grid, Date outside More details, and UPI/Online wording. The Redmi Note 13 screenshot confirms the default form and Save action fit without scrolling.
+
+Added a blue rupee adaptive launcher icon, version labels, a local signed APK build script, and cached optional/mandatory update checks backed by a public version-policy endpoint. Builds below the configured minimum receive HTTP 426 on API requests. No APK publishing or cloud deployment was performed. See `local-apk-builds.md` for build and update-policy instructions.
+
+Validation: 33 Android unit tests and 6 backend tests passed; backend typecheck, debug build, and signed release build passed. The release APK reports version 1.1.0/build 2 and its signature verifies. The local version endpoint responded correctly. Ten screen captures from the Redmi Note 13 are saved privately under `/tmp/accountant-screens-7xy5t7mf`. Two-phone sync and on-device update-dialog checks are in progress.

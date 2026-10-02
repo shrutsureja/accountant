@@ -69,6 +69,7 @@ fun ProfileScreen(
             }
             Spacer(Modifier.height(AccountantSpacing.lg))
         }
+        item { Text("Version ${com.sureja.accountant.BuildConfig.VERSION_NAME} (${com.sureja.accountant.BuildConfig.VERSION_CODE})", style = MaterialTheme.typography.bodySmall, color = AccountantColors.SecondaryText) }
         item { ProfileSection("DATA & SYNC") }
         item { ProfileSettingRow(Icons.Default.Sync, "Sync now", syncSubtitle(lastSyncAt), onSync) }
         item { ProfileSettingRow(Icons.Default.Sms, "Scan last 30 days", null, onScanSms) }

@@ -46,8 +46,10 @@ class MainActivity : FragmentActivity() {
 @Composable
 private fun MainActivity.AccountantRoot(biometric:((()->Unit),(()->Unit))->Unit,session:SessionViewModel=hiltViewModel()) {
     val hasSession by session.hasSession.collectAsState();val biometricEnabled by session.biometricEnabled.collectAsState();var unlocked by remember{mutableStateOf(false)}
-    LaunchedEffect(hasSession,biometricEnabled){if(!hasSession)unlocked=false else if(BuildConfig.DEBUG && BuildConfig.LOCAL_AUTH_BYPASS)unlocked=true else if(!biometricEnabled)unlocked=true else if(!unlocked)biometric({unlocked=true},{})}
-    when { !hasSession -> LoginScreen(session);!unlocked -> LockedScreen({biometric({unlocked=true},{})},{session.logout()});else -> MainShell(session) }
+    AppUpdateGate(hasSession) {
+        LaunchedEffect(hasSession,biometricEnabled){if(!hasSession)unlocked=false else if(BuildConfig.DEBUG && BuildConfig.LOCAL_AUTH_BYPASS)unlocked=true else if(!biometricEnabled)unlocked=true else if(!unlocked)biometric({unlocked=true},{})}
+        when { !hasSession -> LoginScreen(session);!unlocked -> LockedScreen({biometric({unlocked=true},{})},{session.logout()});else -> MainShell(session) }
+    }
 }
 
 @Composable

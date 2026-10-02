@@ -39,7 +39,7 @@ object AppModule {
         val client = OkHttpClient.Builder()
             .addInterceptor { chain ->
                 val token = runBlocking { store.session()?.accessToken }
-                chain.proceed(chain.request().newBuilder().apply { if (token != null) header("Authorization","Bearer $token") }.build())
+                chain.proceed(chain.request().newBuilder().header("X-App-Version-Code", BuildConfig.VERSION_CODE.toString()).apply { if (token != null) header("Authorization","Bearer $token") }.build())
             }
             .authenticator { _, response ->
                 if (response.request.url.encodedPath.startsWith("/api/v1/auth/") || response.retryCount() > 1) return@authenticator null
@@ -52,7 +52,7 @@ object AppModule {
                     val refreshBody = json.encodeToString(RefreshRequest(session.deviceId, session.refreshToken))
                         .toRequestBody("application/json".toMediaType())
                     val refreshUrl = response.request.url.newBuilder().encodedPath("/api/v1/auth/refresh").build()
-                    val request = Request.Builder().url(refreshUrl).post(refreshBody).build()
+                    val request = Request.Builder().url(refreshUrl).header("X-App-Version-Code", BuildConfig.VERSION_CODE.toString()).post(refreshBody).build()
                     runCatching {
                         refreshClient.newCall(request).execute().use { refreshResponse ->
                             if (!refreshResponse.isSuccessful) return@use null

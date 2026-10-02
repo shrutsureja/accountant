@@ -11,3 +11,7 @@ android/app/google-services.json
 *.jks
 *.keystore
 .DS_Store
+
+dist/
+__pycache__/
+*.p12

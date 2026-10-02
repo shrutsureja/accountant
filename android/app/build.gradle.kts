@@ -21,18 +21,30 @@ android {
         applicationId = "com.shrutsureja.accountant"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = providers.gradleProperty("APP_VERSION_CODE").orNull?.toInt() ?: 2
+        versionName = providers.gradleProperty("APP_VERSION_NAME").orNull ?: "1.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "API_BASE_URL", "\"${providers.gradleProperty("API_BASE_URL").orNull ?: "http://10.0.2.2:8787/"}\"")
     }
     buildFeatures { compose = true; buildConfig = true }
+    signingConfigs {
+        create("family") {
+            val path = System.getenv("ACCOUNTANT_KEYSTORE")
+            if (path != null) {
+                storeFile = file(path)
+                storePassword = System.getenv("ACCOUNTANT_STORE_PASSWORD")
+                keyAlias = "accountant"
+                keyPassword = System.getenv("ACCOUNTANT_STORE_PASSWORD")
+            }
+        }
+    }
     buildTypes {
         getByName("debug") {
             val bypass = providers.gradleProperty("LOCAL_AUTH_BYPASS").orNull?.toBooleanStrictOrNull() ?: false
             buildConfigField("boolean", "LOCAL_AUTH_BYPASS", bypass.toString())
         }
         getByName("release") {
+            if (System.getenv("ACCOUNTANT_KEYSTORE") != null) signingConfig = signingConfigs.getByName("family")
             buildConfigField("boolean", "LOCAL_AUTH_BYPASS", "false")
         }
     }

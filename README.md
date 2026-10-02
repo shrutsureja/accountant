@@ -81,3 +81,9 @@ The five bottom destinations remain Home, Transactions, Add, Reports, and Profil
 ## Security and privacy
 
 Amounts are integer paise throughout. PINs use salted PBKDF2 hashes supported by the Cloudflare Web Crypto runtime. Refresh tokens are only stored hashed in D1. SMS and notification bodies are parsed on-device and are never sent to the API.
+
+## Private family APK builds
+
+Use `python3 scripts/build_apk.py --version 1.1.0 --code 2 --api-url https://api.accountant.shrutsureja.com/` to produce a signed `dist/Accountant-1.1.0-build-2-release.apk` locally. Nothing is uploaded. The cloud backend must be deployed before this URL can be used by family phones.
+
+See [local build and update instructions](docs/local-apk-builds.md) for signing-key backup, debug builds, parent login names, and optional/mandatory app updates.

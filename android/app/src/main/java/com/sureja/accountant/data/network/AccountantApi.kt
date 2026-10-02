@@ -3,6 +3,7 @@ package com.sureja.accountant.data.network
 import retrofit2.http.*
 
 interface AccountantApi {
+    @GET("api/v1/app/version") suspend fun versionPolicy(): com.sureja.accountant.domain.AppVersionPolicy
     @POST("api/v1/auth/login") suspend fun login(@Body body: LoginRequest): LoginResponse
     @POST("api/v1/auth/refresh") suspend fun refresh(@Body body: RefreshRequest): RefreshResponse
     @POST("api/v1/auth/logout") suspend fun logout()

@@ -1,5 +1,8 @@
 export type Bindings = {
   DB: D1Database;
+  APP_MIN_VERSION_CODE?: string;
+  APP_LATEST_VERSION_CODE?: string;
+  APP_LATEST_VERSION_NAME?: string;
   JWT_SECRET: string;
   ACCESS_TOKEN_TTL_SECONDS?: string;
 };

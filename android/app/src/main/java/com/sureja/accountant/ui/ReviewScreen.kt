@@ -162,17 +162,16 @@ private fun ReviewTransactionCard(item: TransactionListItem, sourceMemberName: S
                 CategoryBadge(item.categoryName ?: "Not categorized")
                 MoneyText(item.amountPaise, fontSize = 24)
                 Spacer(Modifier.weight(1f))
-                Text(if (item.source == TransactionSource.NOTIFICATION) "Notification" else "SMS", style = MaterialTheme.typography.labelSmall, color = AccountantColors.SecondaryText)
+                Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = MaterialTheme.shapes.small) {
+                    Row(Modifier.padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                        Text(sourceMemberName ?: "Unknown", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                    }
+                }
             }
             Text(item.merchant?.takeIf { it.isNotBlank() } ?: "Detected expense", style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
             val date = runCatching { OffsetDateTime.parse(item.occurredAt).format(DateTimeFormatter.ofPattern("d MMM · h:mm a")) }.getOrDefault(item.occurredAt.take(16))
-            Text(listOfNotNull(if (item.paymentMethod == PaymentMethod.UPI) "UPI" else item.paymentMethod.name.lowercase().replaceFirstChar(Char::uppercase), date, item.accountName).joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = AccountantColors.SecondaryText)
-            Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = MaterialTheme.shapes.small) {
-                Row(Modifier.padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
-                    Text(sourceMemberName?.let { "Detected on $it's phone" } ?: "Source member unavailable", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                }
-            }
+            Text(listOfNotNull(if (item.source == TransactionSource.NOTIFICATION) "Notification" else "SMS", if (item.paymentMethod == PaymentMethod.UPI) "UPI" else item.paymentMethod.name.lowercase().replaceFirstChar(Char::uppercase), date, item.accountName).joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = AccountantColors.SecondaryText)
             Text("Category: ${item.categoryName ?: "Not categorized"}", style = MaterialTheme.typography.bodySmall, color = AccountantColors.SecondaryText)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onIgnore) { Text("Ignore", color = AccountantColors.SecondaryText) }

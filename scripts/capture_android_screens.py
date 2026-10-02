@@ -39,7 +39,7 @@ def main():
     results = []
 
     def tree():
-        focus = run("shell", "dumpsys", "window", "windows").decode()
+        focus = run("shell", "dumpsys", "window").decode()
         if not any(PACKAGE in line for line in focus.splitlines() if "mCurrentFocus=" in line):
             raise RuntimeError("Leave Accountant foreground, unlocked and signed in; capture stopped.")
         remote = "/sdcard/accountant-capture-window.xml"

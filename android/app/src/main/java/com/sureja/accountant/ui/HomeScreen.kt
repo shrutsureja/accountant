@@ -43,7 +43,7 @@ fun HomeScreen(
     LazyColumn(
         Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = AccountantSpacing.page, vertical = AccountantSpacing.page),
-        verticalArrangement = Arrangement.spacedBy(AccountantSpacing.lg),
+        verticalArrangement = Arrangement.spacedBy(AccountantSpacing.base),
     ) {
         item {
             Text(
@@ -83,7 +83,7 @@ fun HomeScreen(
             items(state.people, key = { it.id }) { PersonSpendRow(it, state.total, showBar = true) }
             item { SectionTitle("Top categories", onReports, "View reports") }
             if (state.categories.isEmpty()) item { Text("No category spending yet", style = MaterialTheme.typography.bodySmall, color = AccountantColors.SecondaryText) }
-            else items(state.categories, key = { it.id }) { PersonSpendRow(it, state.total, showBar = true) }
+            else items(state.categories, key = { it.id }) { PersonSpendRow(it, state.total, showBar = true, category = true) }
             item { SectionTitle("Recent expenses", onTransactions, "See all") }
             if (state.recent.isEmpty()) item { Text("No recent expenses yet", style = MaterialTheme.typography.bodySmall, color = AccountantColors.SecondaryText) }
             else items(state.recent.take(4), key = { it.id }) { TransactionRow(it, onTransactions) }
@@ -136,20 +136,23 @@ private fun HomeMetric(label: String, value: String, modifier: Modifier = Modifi
 }
 
 @Composable
-private fun PersonSpendRow(item: NamedAmount, total: Long, showBar: Boolean) {
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(AccountantSpacing.sm)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(item.name, style = MaterialTheme.typography.bodyLarge)
-            Text(money(item.amountPaise), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-        }
-        if (showBar && item.amountPaise > 0 && total > 0) {
-            LinearProgressIndicator(
-                progress = { (item.amountPaise.toFloat() / total).coerceIn(0f, 1f) },
-                modifier = Modifier.fillMaxWidth().height(4.dp),
-                color = AccountantColors.Blue,
-                trackColor = AccountantColors.MutedSurface,
-                drawStopIndicator = {},
-            )
+private fun PersonSpendRow(item: NamedAmount, total: Long, showBar: Boolean, category: Boolean = false) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(AccountantSpacing.md)) {
+        if (category) CategoryBadge(item.name) else MemberAvatar(item.name)
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(AccountantSpacing.sm)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(item.name, style = MaterialTheme.typography.bodyLarge)
+                Text(money(item.amountPaise), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+            }
+            if (showBar && item.amountPaise > 0 && total > 0) {
+                LinearProgressIndicator(
+                    progress = { (item.amountPaise.toFloat() / total).coerceIn(0f, 1f) },
+                    modifier = Modifier.fillMaxWidth().height(4.dp),
+                    color = AccountantColors.Blue,
+                    trackColor = AccountantColors.MutedSurface,
+                    drawStopIndicator = {},
+                )
+            }
         }
     }
 }

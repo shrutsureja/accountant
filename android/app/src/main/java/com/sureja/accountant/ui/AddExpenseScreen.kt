@@ -110,6 +110,9 @@ fun AddExpenseScreen(onSaved: () -> Unit, viewModel: AddViewModel = hiltViewMode
                         onSelect = { categoryId = it },
                         onMore = { selector = ExpenseSelection.CATEGORY },
                     )
+                    if (categoryId != null && quickCategories.none { it.id == categoryId }) {
+                        Text("Selected: $selectedCategory", style = MaterialTheme.typography.bodyMedium, color = AccountantColors.BlueDark)
+                    }
                 }
             }
             item {
@@ -230,7 +233,7 @@ private fun CategoryQuickGrid(
                         color = if (selected) AccountantColors.BlueLight else AccountantColors.Surface,
                         border = BorderStroke(1.dp, if (selected) AccountantColors.Blue else AccountantColors.Border),
                     ) {
-                        Row(Modifier.fillMaxSize().padding(horizontal = AccountantSpacing.sm), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                        Row(Modifier.fillMaxWidth().heightIn(min = 50.dp).padding(horizontal = AccountantSpacing.sm), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                             if (id == null) Icon(Icons.Default.MoreHoriz, contentDescription = null, tint = AccountantColors.SecondaryText)
                             else CategoryIcon(name, tint = if (selected) AccountantColors.Blue else AccountantColors.SecondaryText)
                             Spacer(Modifier.width(AccountantSpacing.xs))

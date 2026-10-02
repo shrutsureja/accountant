@@ -6,6 +6,8 @@ import com.sureja.accountant.data.preferences.AuthStore
 import com.sureja.accountant.data.preferences.Session
 import com.sureja.accountant.domain.ParsedTransaction
 import com.sureja.accountant.domain.TransactionFingerprint
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.encodeToString
@@ -29,6 +31,8 @@ data class ExpenseInput(val amountPaise: Long,val categoryId: String?,val paidBy
 
 @Singleton
 class AccountantRepository @Inject constructor(private val dao: AccountantDao,private val api: AccountantApi,private val authStore: AuthStore,private val json: Json) {
+    private val detectionMutex = Mutex()
+
     fun members() = dao.observeMembers(); fun categories() = dao.observeCategories(); fun allCategories() = dao.observeAllCategories(); fun accounts() = dao.observeAccounts();fun allAccounts()=dao.observeAllAccounts()
     fun recentCategoryUsage(sinceDate: LocalDate, userId: String? = null) = dao.observeRecentCategoryUsage(sinceDate.toString(), userId)
     fun transactions(search: String="",member: String?=null,category: String?=null,range: MonthRange?=null) = dao.observeTransactions(search,member,category,range?.from,range?.to)
@@ -82,14 +86,14 @@ class AccountantRepository @Inject constructor(private val dao: AccountantDao,pr
     suspend fun ignore(id: String) = setReviewStatus(id,TransactionStatus.IGNORED)
     private suspend fun setReviewStatus(id: String,status: TransactionStatus) { val old=dao.transaction(id) ?: return; dao.upsertTransaction(old.copy(status=status,updatedAt=OffsetDateTime.now().toString(),syncStatus=if(old.syncStatus==SyncStatus.PENDING_CREATE) old.syncStatus else SyncStatus.PENDING_UPDATE)) }
 
-    suspend fun addDetected(parsed: ParsedTransaction,source: TransactionSource,occurredAt: Instant=Instant.now()): Boolean {
+    suspend fun addDetected(parsed: ParsedTransaction,source: TransactionSource,occurredAt: Instant=Instant.now()): Boolean = detectionMutex.withLock {
         seedForOfflinePreview(); val member=authStore.session()?.userId ?: dao.members().first().id
         val fingerprint=TransactionFingerprint.create(parsed.amountPaise,occurredAt,parsed.accountLast4,parsed.merchant,parsed.sourceReference)
-        if (dao.fingerprintCount(fingerprint)>0) return false
+        if (dao.fingerprintCount(fingerprint)>0) return@withLock false
         val rules=dao.merchantRules(); val category=rules.firstOrNull { parsed.merchant?.contains(it.merchantPattern,true)==true }?.categoryId
         val now=OffsetDateTime.now().toString()
         dao.upsertTransaction(TransactionEntity(UUID.randomUUID().toString(),parsed.amountPaise,categoryId=category,paidByUserId=member,paymentMethod=PaymentMethod.valueOf(parsed.paymentMethod),merchant=parsed.merchant,occurredAt=occurredAt.atZone(ZoneId.systemDefault()).toOffsetDateTime().toString(),source=source,status=TransactionStatus.DETECTED,sourceReference=parsed.sourceReference,fingerprint=fingerprint,createdByUserId=member,updatedByUserId=member,createdAt=now,updatedAt=now,syncStatus=SyncStatus.PENDING_CREATE))
-        return true
+        true
     }
 
     suspend fun logout() { runCatching { api.logout() }; authStore.clear() }

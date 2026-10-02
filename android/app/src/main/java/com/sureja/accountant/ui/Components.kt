@@ -112,8 +112,10 @@ fun TransactionRow(item: TransactionListItem, onClick: () -> Unit = {}) {
         Modifier.fillMaxWidth().clickable(onClick = onClick).heightIn(min = 64.dp).padding(vertical = AccountantSpacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(Modifier.weight(1f)) {
-            Text(item.merchant?.takeIf { it.isNotBlank() } ?: item.categoryName ?: "Expense", style = MaterialTheme.typography.titleSmall)
+        CategoryBadge(item.categoryName ?: "Not categorized")
+        Spacer(Modifier.width(AccountantSpacing.md))
+        Column(Modifier.weight(1f).padding(end = AccountantSpacing.sm)) {
+            Text(item.merchant?.takeIf { it.isNotBlank() } ?: item.categoryName ?: "Expense", style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(
                 listOfNotNull(item.categoryName, if (item.paymentMethod == PaymentMethod.UPI) "UPI" else item.paymentMethod.name.lowercase().replaceFirstChar(Char::uppercase)).joinToString(" • "),
                 style = MaterialTheme.typography.bodySmall,
@@ -132,7 +134,7 @@ fun TransactionRow(item: TransactionListItem, onClick: () -> Unit = {}) {
                 )
             }
         }
-        MoneyText(item.amountPaise, fontSize = 17)
+        MoneyText(item.amountPaise, Modifier.align(Alignment.Top).padding(top = 2.dp), fontSize = 17)
     }
 }
 
@@ -172,12 +174,12 @@ fun AccountantNavigationBar(
                     ) {
                         Box(
                             Modifier.size(width = 44.dp, height = 28.dp).background(
-                                if (selected) AccountantColors.BlueLight else Color.Transparent,
+                                if (destination.route == "add") AccountantColors.Blue else if (selected) AccountantColors.BlueLight else Color.Transparent,
                                 RoundedCornerShape(10.dp),
                             ),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Icon(destination.icon, contentDescription = null, modifier = Modifier.size(21.dp), tint = tint)
+                            Icon(destination.icon, contentDescription = null, modifier = Modifier.size(21.dp), tint = if (destination.route == "add") Color.White else tint)
                         }
                         Text(
                             destination.label,
@@ -193,5 +195,19 @@ fun AccountantNavigationBar(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun CategoryBadge(name: String, modifier: Modifier = Modifier) {
+    Box(modifier.size(36.dp).background(AccountantColors.BlueLight, CircleShape), contentAlignment = Alignment.Center) {
+        CategoryIcon(name, Modifier.size(20.dp))
+    }
+}
+
+@Composable
+fun MemberAvatar(name: String, modifier: Modifier = Modifier) {
+    Box(modifier.size(36.dp).background(AccountantColors.BlueLight, CircleShape), contentAlignment = Alignment.Center) {
+        Text(name.firstOrNull()?.uppercase() ?: "?", style = MaterialTheme.typography.titleSmall, color = AccountantColors.BlueDark)
     }
 }

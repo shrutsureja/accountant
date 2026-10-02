@@ -7,7 +7,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.app.NotificationManagerCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -34,6 +39,18 @@ fun ProfileScreen(
     onCategories: () -> Unit,
     onAccounts: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var notificationEnabled by remember { mutableStateOf(NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)) }
+    DisposableEffect(lifecycleOwner, context) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                notificationEnabled = NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     LazyColumn(
         Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = AccountantSpacing.page, vertical = AccountantSpacing.page),
@@ -57,7 +74,7 @@ fun ProfileScreen(
         item { ProfileSettingRow(Icons.Default.Sms, "Scan last 30 days", null, onScanSms) }
         item { ProfileSettingRow(Icons.Default.Download, "Export CSV", null, onExport) }
         item { ProfileSection("AUTOMATION") }
-        item { ProfileSettingRow(Icons.Default.Notifications, "Notification access", "Manage in Android settings", onNotificationAccess) }
+        item { ProfileSettingRow(Icons.Default.Notifications, "Notification access", if (notificationEnabled) "Enabled · Bank and UPI payments" else "Permission required · Capture bank and UPI payments", onNotificationAccess) }
         item { ProfileSettingRow(Icons.Default.Sms, "Live SMS detection", "Allow incoming message detection", onEnableLiveSms) }
         item { ProfileSection("MANAGE") }
         item { ProfileSettingRow(Icons.Default.Category, "Categories", null, onCategories) }

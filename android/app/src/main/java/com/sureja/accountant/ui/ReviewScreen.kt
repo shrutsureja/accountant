@@ -156,7 +156,12 @@ fun ReviewScreen(onBack: () -> Unit, viewModel: ReviewViewModel = hiltViewModel(
 private fun ReviewTransactionCard(item: TransactionListItem, onIgnore: () -> Unit, onEdit: () -> Unit, onConfirm: () -> Unit) {
     Surface(color = AccountantColors.Surface, shape = MaterialTheme.shapes.medium, border = BorderStroke(1.dp, AccountantColors.Border)) {
         Column(Modifier.fillMaxWidth().padding(AccountantSpacing.base), verticalArrangement = Arrangement.spacedBy(AccountantSpacing.xs)) {
-            MoneyText(item.amountPaise, fontSize = 26)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(AccountantSpacing.md)) {
+                CategoryBadge(item.categoryName ?: "Not categorized")
+                MoneyText(item.amountPaise, fontSize = 24)
+                Spacer(Modifier.weight(1f))
+                Text(if (item.source == TransactionSource.NOTIFICATION) "Notification" else "SMS", style = MaterialTheme.typography.labelSmall, color = AccountantColors.SecondaryText)
+            }
             Text(item.merchant?.takeIf { it.isNotBlank() } ?: "Detected expense", style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
             val date = runCatching { OffsetDateTime.parse(item.occurredAt).format(DateTimeFormatter.ofPattern("d MMM · h:mm a")) }.getOrDefault(item.occurredAt.take(16))
             Text(listOfNotNull(if (item.paymentMethod == PaymentMethod.UPI) "UPI" else item.paymentMethod.name.lowercase().replaceFirstChar(Char::uppercase), date, item.accountName).joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = AccountantColors.SecondaryText)

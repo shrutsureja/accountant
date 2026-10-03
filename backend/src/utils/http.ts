@@ -6,7 +6,12 @@ export async function parseJson<T>(c: Context<{ Bindings: Bindings; Variables: V
   try {
     const body = await c.req.json();
     const result = schema.safeParse(body);
-    if (!result.success) return c.json({ error: 'Invalid request', details: result.error.issues }, 400);
+    if (!result.success) {
+      if (c.req.path === '/api/v1/sync') console.warn('sync_validation_failed', {
+        issues: result.error.issues.map(({ code, path }) => ({ code, path })),
+      });
+      return c.json({ error: 'Invalid request', details: result.error.issues }, 400);
+    }
     return result.data;
   } catch {
     return c.json({ error: 'Invalid JSON' }, 400);

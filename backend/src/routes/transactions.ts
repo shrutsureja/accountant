@@ -36,9 +36,9 @@ transactionRoutes.post('/', async (c) => {
     const duplicate = await c.env.DB.prepare("SELECT id FROM transactions WHERE fingerprint=? AND status!='DELETED' AND deleted_at IS NULL").bind(input.fingerprint).first();
     if (duplicate) return c.json({ error: 'Possible duplicate', existingId: duplicate.id }, 409);
   }
-  await c.env.DB.prepare(`INSERT INTO transactions (id,amount_paise,currency,category_id,paid_by_user_id,payment_method,account_id,merchant,note,occurred_at,source,status,source_reference,fingerprint,created_by_user_id,updated_by_user_id,created_at,updated_at,version)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)`)
-    .bind(input.id,input.amountPaise,input.currency,input.categoryId ?? null,input.paidByUserId,input.paymentMethod,input.accountId ?? null,input.merchant ?? null,input.note ?? null,input.occurredAt,input.source,input.status,input.sourceReference ?? null,input.fingerprint ?? null,auth.userId,auth.userId,timestamp,input.updatedAt ?? timestamp).run();
+  await c.env.DB.prepare(`INSERT INTO transactions (id,amount_paise,currency,category_id,paid_by_user_id,payment_method,account_id,merchant,note,occurred_at,source,status,source_reference,fingerprint,created_by_user_id,updated_by_user_id,created_at,updated_at,client_updated_at,version)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)`)
+    .bind(input.id,input.amountPaise,input.currency,input.categoryId ?? null,input.paidByUserId,input.paymentMethod,input.accountId ?? null,input.merchant ?? null,input.note ?? null,input.occurredAt,input.source,input.status,input.sourceReference ?? null,input.fingerprint ?? null,auth.userId,auth.userId,timestamp,timestamp,input.updatedAt ?? timestamp).run();
   const row = await c.env.DB.prepare('SELECT * FROM transactions WHERE id=?').bind(input.id).first<Record<string, unknown>>();
   return c.json({ transaction: mapTransaction(row!) }, 201);
 });
@@ -55,15 +55,15 @@ transactionRoutes.patch('/:id', async (c) => {
   if (!existing) return c.json({ error: 'Transaction not found' }, 404);
   const merged = { amountPaise: existing.amount_paise, currency: existing.currency, categoryId: existing.category_id, paidByUserId: existing.paid_by_user_id, paymentMethod: existing.payment_method, accountId: existing.account_id, merchant: existing.merchant, note: existing.note, occurredAt: existing.occurred_at, source: existing.source, status: existing.status, sourceReference: existing.source_reference, fingerprint: existing.fingerprint, ...input };
   const timestamp = nowIso();
-  await c.env.DB.prepare(`UPDATE transactions SET amount_paise=?,currency=?,category_id=?,paid_by_user_id=?,payment_method=?,account_id=?,merchant=?,note=?,occurred_at=?,source=?,status=?,source_reference=?,fingerprint=?,updated_by_user_id=?,updated_at=?,version=version+1 WHERE id=?`)
-    .bind(merged.amountPaise,merged.currency,merged.categoryId,merged.paidByUserId,merged.paymentMethod,merged.accountId,merged.merchant,merged.note,merged.occurredAt,merged.source,merged.status,merged.sourceReference,merged.fingerprint,c.get('auth').userId,timestamp,c.req.param('id')).run();
+  await c.env.DB.prepare(`UPDATE transactions SET amount_paise=?,currency=?,category_id=?,paid_by_user_id=?,payment_method=?,account_id=?,merchant=?,note=?,occurred_at=?,source=?,status=?,source_reference=?,fingerprint=?,updated_by_user_id=?,updated_at=?,client_updated_at=?,version=version+1 WHERE id=?`)
+    .bind(merged.amountPaise,merged.currency,merged.categoryId,merged.paidByUserId,merged.paymentMethod,merged.accountId,merged.merchant,merged.note,merged.occurredAt,merged.source,merged.status,merged.sourceReference,merged.fingerprint,c.get('auth').userId,timestamp,timestamp,c.req.param('id')).run();
   const row = await c.env.DB.prepare('SELECT * FROM transactions WHERE id=?').bind(c.req.param('id')).first<Record<string, unknown>>();
   return c.json({ transaction: mapTransaction(row!) });
 });
 
 transactionRoutes.delete('/:id', async (c) => {
   const timestamp = nowIso();
-  const result = await c.env.DB.prepare("UPDATE transactions SET status='DELETED',deleted_at=?,updated_at=?,updated_by_user_id=?,version=version+1 WHERE id=? AND deleted_at IS NULL").bind(timestamp,timestamp,c.get('auth').userId,c.req.param('id')).run();
+  const result = await c.env.DB.prepare("UPDATE transactions SET status='DELETED',deleted_at=?,updated_at=?,client_updated_at=?,updated_by_user_id=?,version=version+1 WHERE id=? AND deleted_at IS NULL").bind(timestamp,timestamp,timestamp,c.get('auth').userId,c.req.param('id')).run();
   return result.meta.changes ? c.body(null, 204) : c.json({ error: 'Transaction not found' }, 404);
 });
 
@@ -71,10 +71,9 @@ for (const action of ['confirm', 'ignore'] as const) {
   transactionRoutes.post(`/:id/${action}`, async (c) => {
     const status = action === 'confirm' ? 'CONFIRMED' : 'IGNORED';
     const timestamp = nowIso();
-    const result = await c.env.DB.prepare("UPDATE transactions SET status=?,updated_at=?,updated_by_user_id=?,version=version+1 WHERE id=? AND status='DETECTED' AND deleted_at IS NULL").bind(status,timestamp,c.get('auth').userId,c.req.param('id')).run();
+    const result = await c.env.DB.prepare("UPDATE transactions SET status=?,updated_at=?,client_updated_at=?,updated_by_user_id=?,version=version+1 WHERE id=? AND status='DETECTED' AND deleted_at IS NULL").bind(status,timestamp,timestamp,c.get('auth').userId,c.req.param('id')).run();
     if (!result.meta.changes) return c.json({ error: 'Review item not found' }, 404);
     const row = await c.env.DB.prepare('SELECT * FROM transactions WHERE id=?').bind(c.req.param('id')).first<Record<string, unknown>>();
     return c.json({ transaction: mapTransaction(row!) });
   });
 }
-

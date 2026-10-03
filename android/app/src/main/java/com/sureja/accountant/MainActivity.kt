@@ -3,6 +3,9 @@ package com.sureja.accountant
 import android.Manifest
 import android.content.Intent
 import android.provider.Settings
+import android.os.Build
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -81,6 +84,16 @@ private fun MainActivity.MainShell(session:SessionViewModel) {
     var scanMonth by rememberSaveable { mutableStateOf(YearMonth.now().toString()) }
     val smsPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) activity.scanSms(YearMonth.parse(scanMonth)) else Toast.makeText(activity, "SMS permission is needed for the history scan", Toast.LENGTH_LONG).show()
+    }
+    val alertPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    var askedForAlerts by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= 33 && !askedForAlerts &&
+            ContextCompat.checkSelfPermission(activity, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            askedForAlerts = true
+            alertPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
     }
     val liveSmsPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         Toast.makeText(activity, if (granted) "Live SMS detection enabled" else "Live SMS detection remains off", Toast.LENGTH_LONG).show()

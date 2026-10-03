@@ -24,7 +24,7 @@ class TransactionSmsReceiver : BroadcastReceiver() {
                 if (parts.isNotEmpty()) {
                     val body = parts.joinToString("") { it.messageBody.orEmpty() }
                     val receivedAt = parts.minOf { it.timestampMillis }
-                    ParserRegistry().parse(body)?.let { repository.addDetected(it,TransactionSource.SMS,Instant.ofEpochMilli(receivedAt)) }
+                    ParserRegistry().parse(body)?.let { if (repository.addDetected(it,TransactionSource.SMS,Instant.ofEpochMilli(receivedAt))) DetectionNotifier.show(context) }
                 }
             } finally { pending.finish() }
         }

@@ -1,5 +1,7 @@
 package com.sureja.accountant.data
 
+import com.sureja.accountant.domain.matchDetectedAccount
+
 import com.sureja.accountant.data.local.*
 import com.sureja.accountant.data.network.*
 import com.sureja.accountant.data.preferences.AuthStore
@@ -105,7 +107,9 @@ class AccountantRepository @Inject constructor(private val dao: AccountantDao,pr
         if (dao.fingerprintCount(fingerprint)>0) return@withLock false
         val rules=dao.merchantRules(); val category=rules.firstOrNull { parsed.merchant?.contains(it.merchantPattern,true)==true }?.categoryId
         val now=OffsetDateTime.now().toString()
-        dao.upsertTransaction(TransactionEntity(UUID.randomUUID().toString(),parsed.amountPaise,categoryId=category,paidByUserId=member,paymentMethod=PaymentMethod.valueOf(parsed.paymentMethod),merchant=parsed.merchant,occurredAt=occurredAt.atZone(ZoneId.systemDefault()).toOffsetDateTime().toString(),source=source,status=TransactionStatus.DETECTED,sourceReference=parsed.sourceReference,fingerprint=fingerprint,createdByUserId=member,updatedByUserId=member,createdAt=now,updatedAt=now,syncStatus=SyncStatus.PENDING_CREATE))
+        val detectedPayment = PaymentMethod.valueOf(parsed.paymentMethod)
+        val detectedAccount = matchDetectedAccount(dao.accounts(), parsed.accountLast4, member, detectedPayment)
+        dao.upsertTransaction(TransactionEntity(UUID.randomUUID().toString(),parsed.amountPaise,categoryId=category,paidByUserId=member,paymentMethod=detectedPayment,accountId=detectedAccount,merchant=parsed.merchant,occurredAt=occurredAt.atZone(ZoneId.systemDefault()).toOffsetDateTime().toString(),source=source,status=TransactionStatus.DETECTED,sourceReference=parsed.sourceReference,fingerprint=fingerprint,createdByUserId=member,updatedByUserId=member,createdAt=now,updatedAt=now,syncStatus=SyncStatus.PENDING_CREATE))
         true
     }
 

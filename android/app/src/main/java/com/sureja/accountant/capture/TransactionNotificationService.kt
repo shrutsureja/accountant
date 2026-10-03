@@ -35,7 +35,7 @@ class TransactionNotificationService : NotificationListenerService() {
         ) ?: return
         scope.launch {
             try {
-                repository.addDetected(parsed, TransactionSource.NOTIFICATION, Instant.ofEpochMilli(sbn.postTime))
+                if (repository.addDetected(parsed, TransactionSource.NOTIFICATION, Instant.ofEpochMilli(sbn.postTime))) DetectionNotifier.show(this@TransactionNotificationService)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {

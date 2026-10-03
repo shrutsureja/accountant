@@ -19,10 +19,10 @@ curl --fail https://api.accountant.shrutsureja.com/health
 ## Private APK
 
 ```sh
-python3 scripts/build_apk.py --version 1.1.1 --code 3 --api-url https://api.accountant.shrutsureja.com/
+python3 scripts/build_apk.py --version 1.1.2 --code 4 --api-url https://api.accountant.shrutsureja.com/
 ```
 
-Output: `dist/Accountant-1.1.1-build-3-release.apk`. This file is local and ignored by Git; share it directly with family. Production policy advertises build 3/version 1.1.1, minimum build 1. Build and distribute future APKs before increasing the minimum.
+Output: `dist/Accountant-1.1.2-build-4-release.apk`. This file is local and ignored by Git; share it directly with family. Production policy advertises build 4/version 1.1.2, minimum build 1. Build and distribute future APKs before increasing the minimum.
 
 Existing development installations use a different signing key. Do not uninstall them until all pending transactions are synced and data is backed up. A debug-signed build targeting the cloud can update these installations without deleting their data; the signed release is for clean installations or a deliberate backed-up migration.
 
@@ -40,4 +40,6 @@ Cloudflare automatically provisions the custom-domain certificate. A successful 
 
 ## Verified deployment
 
-HTTPS health and version-policy checks pass. Unauthenticated member access returns 401. Shrut, Alpa, and Hitesh can each log in and perform an initial sync; each sync contains only the 15 categories and Cash account, with no transactions. Backend tests (7), typecheck, Android tests (42), and signed release build pass. The connected phones remain on their local development installs; the release APK has not been installed over them or publicly uploaded.
+HTTPS health and version-policy checks pass. Unauthenticated member access returns 401. Shrut, Alpa, and Hitesh have each logged in and synced. On 3 October, the production database contained 53 transactions, 16 categories, and 2 accounts after Shrut's pending phone changes uploaded; no duplicate transaction fingerprint groups were found. Build 3 synced successfully after the server-side batching fix, then build 4 was installed over it on Shrut's Redmi with local data preserved. Build 4 synced successfully and showed notification capture and expense alerts enabled. Backend tests, typecheck, Android unit tests, and the signed release build pass. The release APK remains local and has not been publicly uploaded.
+
+Sync applies category and account changes before dependent transactions in a database batch. Archiving either catalog item keeps its row and ID, so another phone can still sync an expense referencing it; the archived item is excluded from new selections. The sync timestamp migration keeps client edit time for conflict resolution and records server arrival time for downloads, so an old offline expense uploaded later reaches other phones. Different timezone offsets are compared as instants. A private production database export was taken before this migration. A genuine incoming payment notification has not yet been observed end to end with build 4.

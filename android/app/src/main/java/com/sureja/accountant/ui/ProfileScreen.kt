@@ -47,10 +47,12 @@ fun ProfileScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var notificationEnabled by remember { mutableStateOf(NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)) }
+    var alertsEnabled by remember { mutableStateOf(NotificationManagerCompat.from(context).areNotificationsEnabled()) }
     DisposableEffect(lifecycleOwner, context) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 notificationEnabled = NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
+                alertsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -81,6 +83,10 @@ fun ProfileScreen(
         item { ProfileSettingRow(Icons.Default.Download, "Export CSV", null, onExport) }
         item { ProfileSection("AUTOMATION") }
         item { ProfileSettingRow(Icons.Default.Notifications, "Notification access", if (notificationEnabled) "Enabled · Bank and UPI payments" else "Permission required · Capture bank and UPI payments", onNotificationAccess) }
+        item { ProfileSettingRow(Icons.Default.NotificationsActive, "Expense alerts", if (alertsEnabled) "Enabled" else "Tap to enable", {
+            context.startActivity(android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName))
+        }) }
         item { ProfileSettingRow(Icons.Default.Sms, "Live SMS detection", "Allow incoming message detection", onEnableLiveSms) }
         item { ProfileSection("MANAGE") }
         item { ProfileSettingRow(Icons.Default.Category, "Categories", null, onCategories) }

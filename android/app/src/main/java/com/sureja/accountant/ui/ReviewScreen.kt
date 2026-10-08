@@ -141,7 +141,7 @@ fun ReviewScreen(onBack: () -> Unit, viewModel: ReviewViewModel = hiltViewModel(
             val options = when (kind) {
                 ReviewSelector.CATEGORY -> emptyList()
                 ReviewSelector.PERSON -> members.map { it.id to it.displayName }
-                ReviewSelector.ACCOUNT -> listOf("" to "No account") + accounts.filter { it.active && it.paymentMethod == current.payment }.map { it.id to it.name }
+                ReviewSelector.ACCOUNT -> listOf("" to "No account") + accounts.filter { it.active && it.paymentMethod != PaymentMethod.CASH }.map { it.id to it.name }
             }
             ModalBottomSheet(onDismissRequest = { selector = null }, containerColor = AccountantColors.Surface) {
                 Column(Modifier.fillMaxWidth().padding(horizontal = AccountantSpacing.page)) {

@@ -72,7 +72,7 @@ fun AddExpenseScreen(onSaved: () -> Unit, viewModel: AddViewModel = hiltViewMode
 
     val selectedDate = LocalDate.parse(dateText)
     val selectedCategory = state.categories.firstOrNull { it.id == categoryId }?.name ?: "Choose category"
-    val eligibleAccounts = state.accounts.filter { it.active && it.paymentMethod == payment }
+    val eligibleAccounts = state.accounts.filter { it.active && payment != PaymentMethod.CASH && it.paymentMethod != PaymentMethod.CASH }
     val selectedAccount = eligibleAccounts.firstOrNull { it.id == accountId }?.let {
         listOfNotNull(it.name, it.last4?.let { last4 -> "••$last4" }).joinToString("  ")
     } ?: "No account"

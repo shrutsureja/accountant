@@ -25,16 +25,17 @@ class SmsHistoryScanner @Inject constructor(@ApplicationContext private val cont
         val parser = ParserRegistry()
         context.contentResolver.query(
             Telephony.Sms.Inbox.CONTENT_URI,
-            arrayOf(Telephony.Sms.BODY, Telephony.Sms.DATE),
+            arrayOf(Telephony.Sms.BODY, Telephony.Sms.DATE, Telephony.Sms.ADDRESS),
             "${Telephony.Sms.DATE} >= ? AND ${Telephony.Sms.DATE} < ?",
             arrayOf(window.fromInclusive.toString(), window.toExclusive.toString()),
             "${Telephony.Sms.DATE} ASC",
         )?.use { cursor ->
             val body = cursor.getColumnIndexOrThrow(Telephony.Sms.BODY)
             val date = cursor.getColumnIndexOrThrow(Telephony.Sms.DATE)
+            val sender = cursor.getColumnIndexOrThrow(Telephony.Sms.ADDRESS)
             while (cursor.moveToNext()) {
                 currentCoroutineContext().ensureActive()
-                parser.parse(cursor.getString(body))?.let {
+                parser.parse(cursor.getString(body), cursor.getString(sender))?.let {
                     if (repository.addDetected(it, TransactionSource.SMS, Instant.ofEpochMilli(cursor.getLong(date)))) detected++
                 }
             }

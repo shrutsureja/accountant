@@ -26,6 +26,7 @@ interface AccountantDao {
     @Query("SELECT * FROM accounts WHERE deletedAt IS NULL AND active=1 ORDER BY name") fun observeAccounts(): Flow<List<AccountEntity>>
     @Query("SELECT * FROM accounts WHERE deletedAt IS NULL ORDER BY active DESC,name") fun observeAllAccounts(): Flow<List<AccountEntity>>
     @Query("SELECT * FROM accounts WHERE deletedAt IS NULL ORDER BY name") suspend fun accounts(): List<AccountEntity>
+    @Query("SELECT * FROM accounts") suspend fun allAccountRows(): List<AccountEntity>
     @Query("SELECT * FROM accounts WHERE syncStatus!='SYNCED'") suspend fun pendingAccounts(): List<AccountEntity>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertAccounts(items: List<AccountEntity>)
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertAccount(item: AccountEntity)

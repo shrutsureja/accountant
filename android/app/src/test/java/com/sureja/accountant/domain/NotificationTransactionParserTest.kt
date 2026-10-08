@@ -11,6 +11,8 @@ class NotificationTransactionParserTest {
         assertEquals("DEMO STORE", result.merchant)
         assertEquals("1234", result.accountLast4)
         assertEquals("OTHER", result.paymentMethod) // Bank app alone does not prove UPI.
+        assertEquals("Kotak", result.bankName)
+        assertTrue(result.accountIsDebitSource)
     }
     @Test fun allSupportedAppsCaptureSmallDebits() {
         NotificationTransactionParser.supportedPackages.forEach { app ->
@@ -19,7 +21,9 @@ class NotificationTransactionParserTest {
     }
     @Test fun bhimAndGooglePaySupplyUpiContext() {
         listOf("in.org.npci.upiapp", "com.google.android.apps.nbu.paisa.user").forEach { app ->
-            assertEquals("UPI", NotificationTransactionParser.parse(app, "You paid ₹20 to DEMO", null)!!.paymentMethod)
+            val parsed = NotificationTransactionParser.parse(app, "You paid ₹20 to DEMO", null)!!
+            assertEquals("UPI", parsed.paymentMethod)
+            assertNull(parsed.bankName)
         }
     }
     @Test fun expandedNotificationAndRepeatedBodyAreHandled() {

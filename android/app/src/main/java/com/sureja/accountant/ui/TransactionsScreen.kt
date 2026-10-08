@@ -161,7 +161,7 @@ private fun TransactionEditDialog(item: TransactionListItem, categories: List<Ca
                         SegmentedButton(method == payment, { payment = method }, SegmentedButtonDefaults.itemShape(index, PaymentMethod.entries.size)) { Text(method.name) }
                     }
                 }
-                if (payment != PaymentMethod.CASH) SelectField("Account", accounts.filter { it.paymentMethod == payment }, account, { account = it }, { it.name }, { it.id }, true)
+                if (payment != PaymentMethod.CASH) SelectField("Account", accounts.filter { it.paymentMethod != PaymentMethod.CASH }, account, { account = it }, { it.name }, { it.id }, true)
                 OutlinedTextField(merchant, { merchant = it }, label = { Text("Merchant") })
                 OutlinedTextField(note, { note = it }, label = { Text("Note") })
             }

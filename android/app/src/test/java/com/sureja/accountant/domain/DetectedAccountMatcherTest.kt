@@ -18,12 +18,27 @@ class DetectedAccountMatcherTest {
         assertNull(matchDetectedAccount(listOf(account.copy(active = false)), "2307", "member-1", PaymentMethod.UPI))
         assertNull(matchDetectedAccount(listOf(account.copy(deletedAt = "deleted")), "2307", "member-1", PaymentMethod.UPI))
     }
-    @Test fun requiresValidSuffixAndCompatiblePayment() {
+    @Test fun requiresValidSuffixButMatchesTheSameBankAcrossDigitalPaymentMethods() {
         assertNull(matchDetectedAccount(listOf(account), null, "member-1", PaymentMethod.UPI))
         assertNull(matchDetectedAccount(listOf(account), "307", "member-1", PaymentMethod.UPI))
-        assertNull(matchDetectedAccount(listOf(account), "2307", "member-1", PaymentMethod.OTHER))
+        assertEquals("bank-1", matchDetectedAccount(listOf(account), "2307", "member-1", PaymentMethod.OTHER))
+        assertNull(matchDetectedAccount(listOf(account), "2307", "member-1", PaymentMethod.CASH))
     }
     @Test fun permitsUnambiguousSharedAccount() {
         assertEquals("bank-1", matchDetectedAccount(listOf(account.copy(ownerUserId = null)), "2307", "member-2", PaymentMethod.UPI))
+    }
+    @Test fun bankNameDisambiguatesMatchingSuffixes() {
+        val kotak = account.copy(bankName = "Kotak")
+        val sbi = account.copy(id = "bank-2", bankName = "SBI")
+        assertEquals("bank-1", matchDetectedAccount(listOf(kotak,sbi), "2307", "member-1", PaymentMethod.OTHER, "Kotak"))
+        assertNull(matchDetectedAccount(listOf(kotak,sbi), "2307", "member-1", PaymentMethod.OTHER))
+    }
+    @Test fun createsOnlyConfidentNewFundingAccounts() {
+        assertTrue(canAutoCreateDetectedAccount(emptyList(), "5678", "Kotak", "member-1", PaymentMethod.OTHER, true))
+        assertFalse(canAutoCreateDetectedAccount(emptyList(), "5678", null, "member-1", PaymentMethod.UPI, true))
+        assertFalse(canAutoCreateDetectedAccount(emptyList(), "5678", "Kotak", "member-1", PaymentMethod.UPI, false))
+        assertFalse(canAutoCreateDetectedAccount(listOf(account.copy(bankName = "Kotak", active = false)), "2307", "Kotak", "member-1", PaymentMethod.UPI, true))
+        assertEquals(detectedAccountId("member-1", "Kotak", "5678"), detectedAccountId("member-1", "Kotak", "5678"))
+        assertNotEquals(detectedAccountId("member-1", "Kotak", "5678"), detectedAccountId("member-2", "Kotak", "5678"))
     }
 }

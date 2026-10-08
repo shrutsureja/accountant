@@ -1,6 +1,8 @@
 package com.sureja.accountant.data
 
 import com.sureja.accountant.domain.matchDetectedAccount
+import com.sureja.accountant.domain.canAutoCreateDetectedAccount
+import com.sureja.accountant.domain.detectedAccountId
 
 import com.sureja.accountant.data.local.*
 import com.sureja.accountant.data.network.*
@@ -113,8 +115,18 @@ class AccountantRepository @Inject constructor(private val dao: AccountantDao,pr
         val rules=dao.merchantRules(); val category=rules.firstOrNull { parsed.merchant?.contains(it.merchantPattern,true)==true }?.categoryId
         val now=OffsetDateTime.now().toString()
         val detectedPayment = PaymentMethod.valueOf(parsed.paymentMethod)
-        val detectedAccount = matchDetectedAccount(dao.accounts(), parsed.accountLast4, member, detectedPayment)
-        dao.upsertTransaction(TransactionEntity(UUID.randomUUID().toString(),parsed.amountPaise,categoryId=category,paidByUserId=member,paymentMethod=detectedPayment,accountId=detectedAccount,merchant=parsed.merchant,occurredAt=occurredAt.atZone(ZoneId.systemDefault()).toOffsetDateTime().toString(),source=source,status=TransactionStatus.DETECTED,sourceReference=parsed.sourceReference,fingerprint=fingerprint,createdByUserId=member,updatedByUserId=member,createdAt=now,updatedAt=now,syncStatus=SyncStatus.PENDING_CREATE))
+        database.withTransaction {
+            val knownAccounts = dao.allAccountRows()
+            val detectedAccount = matchDetectedAccount(knownAccounts, parsed.accountLast4, member, detectedPayment, parsed.bankName)
+                ?: if (canAutoCreateDetectedAccount(knownAccounts, parsed.accountLast4, parsed.bankName, member, detectedPayment, parsed.accountIsDebitSource)) {
+                    val bank = parsed.bankName!!
+                    val suffix = parsed.accountLast4!!
+                    val id = detectedAccountId(member, bank, suffix)
+                    dao.upsertAccount(AccountEntity(id,"$bank •$suffix",bank,suffix,member,detectedPayment,true,now,now,updatedBy=member,syncStatus=SyncStatus.PENDING_CREATE))
+                    id
+                } else null
+            dao.upsertTransaction(TransactionEntity(UUID.randomUUID().toString(),parsed.amountPaise,categoryId=category,paidByUserId=member,paymentMethod=detectedPayment,accountId=detectedAccount,merchant=parsed.merchant,occurredAt=occurredAt.atZone(ZoneId.systemDefault()).toOffsetDateTime().toString(),source=source,status=TransactionStatus.DETECTED,sourceReference=parsed.sourceReference,fingerprint=fingerprint,createdByUserId=member,updatedByUserId=member,createdAt=now,updatedAt=now,syncStatus=SyncStatus.PENDING_CREATE))
+        }
         true
     }
 

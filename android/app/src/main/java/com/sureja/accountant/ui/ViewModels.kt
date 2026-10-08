@@ -89,10 +89,13 @@ private data class TransactionFilters(val search:String,val member:String?,val c
 
 @HiltViewModel class ReviewViewModel @Inject constructor(private val repository: AccountantRepository):ViewModel() {
     val items=repository.reviewQueue().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
+    val ignoredItems=repository.ignoredTransactions().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
     fun confirm(id:String)=viewModelScope.launch{repository.confirm(id)}; fun ignore(id:String)=viewModelScope.launch{repository.ignore(id)}
-    fun update(item:TransactionListItem,amount:String,categoryId:String,memberId:String,payment:PaymentMethod,accountId:String?,merchant:String,note:String) {
+    fun restore(id:String)=viewModelScope.launch{repository.restoreIgnored(id)}
+    fun update(item:TransactionListItem,amount:String,categoryId:String,memberId:String,payment:PaymentMethod,accountId:String?,merchant:String,note:String,confirm:Boolean=false) {
         val paise=parseAmountPaise(amount)?:return
-        viewModelScope.launch { repository.updateExpense(item.id,ExpenseInput(paise,categoryId,memberId,payment,if(payment==PaymentMethod.CASH)null else accountId,merchant,note,item.occurredAt)) }
+        val input=ExpenseInput(paise,categoryId,memberId,payment,if(payment==PaymentMethod.CASH)null else accountId,merchant,note,item.occurredAt)
+        viewModelScope.launch { if(confirm) repository.updateAndConfirmExpense(item.id,input) else repository.updateExpense(item.id,input) }
     }
 }
 

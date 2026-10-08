@@ -48,6 +48,7 @@ class AccountantRepository @Inject constructor(private val dao: AccountantDao,pr
     fun recentCategoryUsage(sinceDate: LocalDate, userId: String? = null) = dao.observeRecentCategoryUsage(sinceDate.toString(), userId)
     fun transactions(search: String="",member: String?=null,category: String?=null,range: MonthRange?=null) = dao.observeTransactions(search,member,category,range?.from,range?.to)
     fun reviewQueue() = dao.observeReviewQueue()
+    fun ignoredTransactions() = dao.observeIgnoredTransactions()
     fun total(range: MonthRange=MonthRange.current()) = dao.observeTotal(range.from,range.to)
     fun reviewCount() = dao.observeReviewCount()
     fun memberTotals(range: MonthRange=MonthRange.current()) = dao.observeMemberTotals(range.from,range.to)
@@ -92,14 +93,18 @@ class AccountantRepository @Inject constructor(private val dao: AccountantDao,pr
         authStore.setLastPayment(input.paymentMethod.name); return id
     }
 
-    suspend fun updateExpense(id: String,input: ExpenseInput) {
+    suspend fun updateExpense(id: String,input: ExpenseInput) = saveExpenseUpdate(id,input,null)
+    suspend fun updateAndConfirmExpense(id: String,input: ExpenseInput) = saveExpenseUpdate(id,input,TransactionStatus.CONFIRMED)
+    private suspend fun saveExpenseUpdate(id: String,input: ExpenseInput,status: TransactionStatus?) {
         val old=dao.transaction(id) ?: return; val userId=authStore.session()?.userId ?: old.updatedByUserId
-        dao.upsertTransaction(old.copy(amountPaise=input.amountPaise,categoryId=input.categoryId,paidByUserId=input.paidByUserId,paymentMethod=input.paymentMethod,accountId=input.accountId,merchant=input.merchant,note=input.note,occurredAt=input.occurredAt,updatedByUserId=userId,updatedAt=OffsetDateTime.now().toString(),version=old.version+1,syncStatus=if(old.syncStatus==SyncStatus.PENDING_CREATE) old.syncStatus else SyncStatus.PENDING_UPDATE))
+        if (status == TransactionStatus.CONFIRMED && input.categoryId == null) return
+        dao.upsertTransaction(old.copy(amountPaise=input.amountPaise,categoryId=input.categoryId,paidByUserId=input.paidByUserId,paymentMethod=input.paymentMethod,accountId=input.accountId,merchant=input.merchant,note=input.note,occurredAt=input.occurredAt,status=status ?: old.status,updatedByUserId=userId,updatedAt=OffsetDateTime.now().toString(),version=old.version+1,syncStatus=if(old.syncStatus==SyncStatus.PENDING_CREATE) old.syncStatus else SyncStatus.PENDING_UPDATE))
     }
     suspend fun deleteExpense(id: String) { val old=dao.transaction(id) ?: return; val now=OffsetDateTime.now().toString(); dao.upsertTransaction(old.copy(status=TransactionStatus.DELETED,deletedAt=now,updatedAt=now,syncStatus=SyncStatus.PENDING_DELETE)) }
     suspend fun confirm(id: String) = setReviewStatus(id,TransactionStatus.CONFIRMED)
     suspend fun ignore(id: String) = setReviewStatus(id,TransactionStatus.IGNORED)
-    private suspend fun setReviewStatus(id: String,status: TransactionStatus) { val old=dao.transaction(id) ?: return; dao.upsertTransaction(old.copy(status=status,updatedAt=OffsetDateTime.now().toString(),syncStatus=if(old.syncStatus==SyncStatus.PENDING_CREATE) old.syncStatus else SyncStatus.PENDING_UPDATE)) }
+    suspend fun restoreIgnored(id: String) { val old=dao.transaction(id) ?: return; if(old.status==TransactionStatus.IGNORED) setReviewStatus(id,TransactionStatus.DETECTED) }
+    private suspend fun setReviewStatus(id: String,status: TransactionStatus) { val old=dao.transaction(id) ?: return; if(old.status==TransactionStatus.DELETED || (status==TransactionStatus.CONFIRMED && old.categoryId==null)) return; dao.upsertTransaction(old.copy(status=status,updatedAt=OffsetDateTime.now().toString(),syncStatus=if(old.syncStatus==SyncStatus.PENDING_CREATE) old.syncStatus else SyncStatus.PENDING_UPDATE)) }
 
     suspend fun addDetected(parsed: ParsedTransaction,source: TransactionSource,occurredAt: Instant=Instant.now()): Boolean = detectionMutex.withLock {
         seedForOfflinePreview(); val member=authStore.session()?.userId ?: dao.members().first().id

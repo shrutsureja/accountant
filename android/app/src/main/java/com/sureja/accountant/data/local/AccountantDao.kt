@@ -50,6 +50,13 @@ interface AccountantDao {
         WHERE t.deletedAt IS NULL AND t.status='DETECTED' ORDER BY t.occurredAt DESC
     """) fun observeReviewQueue(): Flow<List<TransactionListItem>>
 
+    @Query("""
+        SELECT t.id,t.amountPaise,t.categoryId,c.name categoryName,t.paidByUserId,m.displayName memberName,
+        t.paymentMethod,t.accountId,a.name accountName,t.merchant,t.note,t.occurredAt,t.source,t.status,t.updatedByUserId,t.syncStatus,t.createdByUserId
+        FROM transactions t LEFT JOIN categories c ON c.id=t.categoryId LEFT JOIN members m ON m.id=t.paidByUserId LEFT JOIN accounts a ON a.id=t.accountId
+        WHERE t.deletedAt IS NULL AND t.status='IGNORED' ORDER BY t.occurredAt DESC
+    """) fun observeIgnoredTransactions(): Flow<List<TransactionListItem>>
+
     @Query("SELECT * FROM transactions WHERE id=:id") suspend fun transaction(id: String): TransactionEntity?
     @Query("SELECT COUNT(*) FROM transactions WHERE fingerprint=:fingerprint AND status!='DELETED' AND deletedAt IS NULL") suspend fun fingerprintCount(fingerprint: String): Int
     @Query("SELECT * FROM transactions WHERE syncStatus!='SYNCED'") suspend fun pendingTransactions(): List<TransactionEntity>

@@ -40,6 +40,7 @@ private data class ReviewDraft(
     val accountId: String?,
     val merchant: String,
     val note: String,
+    val confirmOnSave: Boolean = false,
 ) {
     companion object {
         fun from(item: TransactionListItem) = ReviewDraft(
@@ -52,12 +53,15 @@ private data class ReviewDraft(
 @Composable
 fun ReviewScreen(onBack: () -> Unit, viewModel: ReviewViewModel = hiltViewModel(), catalog: CatalogViewModel = hiltViewModel()) {
     val transactions by viewModel.items.collectAsState()
+    val ignoredTransactions by viewModel.ignoredItems.collectAsState()
     val categories by catalog.categories.collectAsState()
     val categoryUsage by catalog.categoryUsage.collectAsState()
     val members by catalog.members.collectAsState()
     val accounts by catalog.accounts.collectAsState()
     var draft by remember { mutableStateOf<ReviewDraft?>(null) }
     var selector by remember { mutableStateOf<ReviewSelector?>(null) }
+    var showIgnored by remember { mutableStateOf(false) }
+    val visibleTransactions = if (showIgnored) ignoredTransactions else transactions
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -69,27 +73,36 @@ fun ReviewScreen(onBack: () -> Unit, viewModel: ReviewViewModel = hiltViewModel(
             )
         },
     ) { padding ->
-        if (transactions.isEmpty()) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                EmptyState("Nothing to review", "All detected transactions are reviewed.")
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = AccountantSpacing.page), horizontalArrangement = Arrangement.spacedBy(AccountantSpacing.sm)) {
+                FilterChip(selected = !showIgnored, onClick = { showIgnored = false }, label = { Text("Needs review (${transactions.size})") })
+                FilterChip(selected = showIgnored, onClick = { showIgnored = true }, label = { Text("Ignored (${ignoredTransactions.size})") })
             }
-        } else {
-            LazyColumn(
-                Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(horizontal = AccountantSpacing.page, vertical = AccountantSpacing.md),
-                verticalArrangement = Arrangement.spacedBy(AccountantSpacing.md),
-            ) {
-                items(transactions, key = { it.id }) { item ->
-                    ReviewTransactionCard(
-                        item = item,
-                        sourceMemberName = members.firstOrNull { it.id == item.createdByUserId }?.displayName,
-                        onIgnore = { viewModel.ignore(item.id) },
-                        onEdit = { draft = ReviewDraft.from(item) },
-                        onConfirm = {
-                            if (item.categoryId == null) draft = ReviewDraft.from(item)
-                            else viewModel.confirm(item.id)
-                        },
-                    )
+            if (visibleTransactions.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    if (showIgnored) EmptyState("No ignored expenses", "Expenses you ignore will appear here.")
+                    else EmptyState("Nothing to review", "All detected transactions are reviewed.")
+                }
+            } else {
+                LazyColumn(
+                    Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = AccountantSpacing.page, vertical = AccountantSpacing.md),
+                    verticalArrangement = Arrangement.spacedBy(AccountantSpacing.md),
+                ) {
+                    items(visibleTransactions, key = { it.id }) { item ->
+                        ReviewTransactionCard(
+                            item = item,
+                            sourceMemberName = members.firstOrNull { it.id == item.createdByUserId }?.displayName,
+                            ignored = showIgnored,
+                            onIgnore = { viewModel.ignore(item.id) },
+                            onRestore = { viewModel.restore(item.id) },
+                            onEdit = { draft = ReviewDraft.from(item) },
+                            onConfirm = {
+                                if (item.categoryId == null) draft = ReviewDraft.from(item).copy(confirmOnSave = true)
+                                else viewModel.confirm(item.id)
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -107,7 +120,7 @@ fun ReviewScreen(onBack: () -> Unit, viewModel: ReviewViewModel = hiltViewModel(
                 onSave = {
                     val categoryId = current.categoryId
                     if (categoryId != null && parseAmountPaise(current.amount) != null) {
-                        viewModel.update(current.item, current.amount, categoryId, current.memberId, current.payment, current.accountId, current.merchant, current.note)
+                        viewModel.update(current.item, current.amount, categoryId, current.memberId, current.payment, current.accountId, current.merchant, current.note, current.confirmOnSave)
                         draft = null
                     }
                 },
@@ -155,7 +168,7 @@ fun ReviewScreen(onBack: () -> Unit, viewModel: ReviewViewModel = hiltViewModel(
 }
 
 @Composable
-private fun ReviewTransactionCard(item: TransactionListItem, sourceMemberName: String?, onIgnore: () -> Unit, onEdit: () -> Unit, onConfirm: () -> Unit) {
+private fun ReviewTransactionCard(item: TransactionListItem, sourceMemberName: String?, ignored: Boolean, onIgnore: () -> Unit, onRestore: () -> Unit, onEdit: () -> Unit, onConfirm: () -> Unit) {
     Surface(color = AccountantColors.Surface, shape = MaterialTheme.shapes.medium, border = BorderStroke(1.dp, AccountantColors.Border)) {
         Column(Modifier.fillMaxWidth().padding(AccountantSpacing.base), verticalArrangement = Arrangement.spacedBy(AccountantSpacing.xs)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(AccountantSpacing.md)) {
@@ -174,7 +187,8 @@ private fun ReviewTransactionCard(item: TransactionListItem, sourceMemberName: S
             Text(listOfNotNull(if (item.source == TransactionSource.NOTIFICATION) "Notification" else "SMS", if (item.paymentMethod == PaymentMethod.UPI) "UPI" else item.paymentMethod.name.lowercase().replaceFirstChar(Char::uppercase), date, item.accountName).joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = AccountantColors.SecondaryText)
             Text("Category: ${item.categoryName ?: "Not categorized"}", style = MaterialTheme.typography.bodySmall, color = AccountantColors.SecondaryText)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onIgnore) { Text("Ignore", color = AccountantColors.SecondaryText) }
+                if (ignored) TextButton(onRestore) { Text("Restore") }
+                else TextButton(onIgnore) { Text("Ignore", color = AccountantColors.SecondaryText) }
                 TextButton(onEdit) { Text("Edit") }
                 Button(onConfirm, shape = MaterialTheme.shapes.small) { Text("Confirm") }
             }
@@ -195,7 +209,7 @@ private fun ReviewEditSheet(
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = AccountantColors.Surface) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = AccountantSpacing.page), verticalArrangement = Arrangement.spacedBy(AccountantSpacing.md)) {
-            Text("Edit detected expense", style = MaterialTheme.typography.titleLarge)
+            Text(if (draft.confirmOnSave) "Complete and confirm" else "Edit detected expense", style = MaterialTheme.typography.titleLarge)
             OutlinedTextField(
                 draft.amount,
                 { onChange(draft.copy(amount = it.filter { char -> char.isDigit() || char == '.' })) },
@@ -224,7 +238,7 @@ private fun ReviewEditSheet(
             }
             OutlinedTextField(draft.merchant, { onChange(draft.copy(merchant = it)) }, Modifier.fillMaxWidth(), label = { Text("Merchant") }, singleLine = true, shape = MaterialTheme.shapes.small)
             OutlinedTextField(draft.note, { onChange(draft.copy(note = it)) }, Modifier.fillMaxWidth(), label = { Text("Note") }, shape = MaterialTheme.shapes.small)
-            PrimaryButton("Save changes", onSave, Modifier.fillMaxWidth(), enabled = draft.categoryId != null && parseAmountPaise(draft.amount) != null)
+            PrimaryButton(if (draft.confirmOnSave) "Save & confirm" else "Save changes", onSave, Modifier.fillMaxWidth(), enabled = draft.categoryId != null && parseAmountPaise(draft.amount) != null)
             Spacer(Modifier.height(AccountantSpacing.md))
         }
     }

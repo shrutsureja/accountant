@@ -109,7 +109,8 @@ class AccountantRepository @Inject constructor(private val dao: AccountantDao,pr
     private suspend fun setReviewStatus(id: String,status: TransactionStatus) { val old=dao.transaction(id) ?: return; if(old.status==TransactionStatus.DELETED || (status==TransactionStatus.CONFIRMED && old.categoryId==null)) return; dao.upsertTransaction(old.copy(status=status,updatedAt=OffsetDateTime.now().toString(),syncStatus=if(old.syncStatus==SyncStatus.PENDING_CREATE) old.syncStatus else SyncStatus.PENDING_UPDATE)) }
 
     suspend fun addDetected(parsed: ParsedTransaction,source: TransactionSource,occurredAt: Instant=Instant.now()): Boolean = detectionMutex.withLock {
-        seedForOfflinePreview(); val member=authStore.session()?.userId ?: dao.members().first().id
+        val member=authStore.session()?.userId ?: return@withLock false
+        seedForOfflinePreview()
         val fingerprint=TransactionFingerprint.create(parsed.amountPaise,occurredAt,parsed.accountLast4,parsed.merchant,parsed.sourceReference)
         if (dao.fingerprintCount(fingerprint)>0) return@withLock false
         val rules=dao.merchantRules(); val category=rules.firstOrNull { parsed.merchant?.contains(it.merchantPattern,true)==true }?.categoryId

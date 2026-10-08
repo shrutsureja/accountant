@@ -7,19 +7,19 @@ Builds stay on your PC. No GitHub Release, email delivery, or public APK hosting
 From the repository root, with Java 21 and the Android SDK configured:
 
 ```sh
-python3 scripts/build_apk.py --version 1.1.2 --code 4 --api-url https://api.accountant.shrutsureja.com/
+python3 scripts/build_apk.py --version 1.1.3 --code 5 --api-url https://api.accountant.shrutsureja.com/
 ```
 
-The output is `dist/Accountant-1.1.2-build-4-release.apk`, plus a SHA-256 checksum file. Share the APK directly with family once the backend URL is deployed and tested. See `cloudflare-deployment.md` for production deployment status.
+The output is `dist/Accountant-1.1.3-build-5-release.apk`, plus a SHA-256 checksum file. Share the APK directly with family once the backend URL is deployed and tested. See `cloudflare-deployment.md` for production deployment status.
 
-For the next update use a higher Android build code, for example `--version 1.1.2 --code 4`. The script remembers successful builds and rejects decreasing codes. Rebuilding the same version/code is allowed. The display version and build code appear on Login and Profile.
+For the next update use a higher Android build code, for example `--version 1.1.4 --code 6`. The script remembers successful builds and rejects decreasing codes. Rebuilding the same version/code is allowed. The display version and build code appear on Login and Profile.
 
 On the first release build, the script creates a signing key and password under `~/.config/accountant-build/`, restricted to your user. Back up this whole folder privately and keep using it for every release. Do not commit it. `ACCOUNTANT_BUILD_HOME` can point to a restored signing folder. The script runs Android unit tests before packaging and never embeds the signing password in the APK.
 
 Debug/local testing:
 
 ```sh
-python3 scripts/build_apk.py --version 1.1.2 --code 4 --api-url http://127.0.0.1:8787/ --debug
+python3 scripts/build_apk.py --version 1.1.3 --code 5 --api-url http://127.0.0.1:8787/ --debug
 ```
 
 The debug filename ends in `-debug.apk`. A phone needs USB forwarding (`adb reverse tcp:8787 tcp:8787`) for that PC-local address. A second phone must use its own USB forwarding or a reachable LAN backend. Family release builds require HTTPS. The script leaves biometric bypass disabled for both variants.
@@ -34,11 +34,11 @@ All three members have the same dashboard and options. Login usernames are `shru
 
 The app checks `GET /api/v1/app/version` on startup/resume and after login. The Worker configuration exposes:
 
-- `APP_LATEST_VERSION_CODE`: latest available build, currently `4`.
-- `APP_LATEST_VERSION_NAME`: display name, currently `1.1.2`.
+- `APP_LATEST_VERSION_CODE`: latest available build, currently `5`.
+- `APP_LATEST_VERSION_NAME`: display name, currently `1.1.3`.
 - `APP_MIN_VERSION_CODE`: oldest allowed build, currently `1`.
 
-For a soft update to build 4, set latest to 4 and its display name, leaving minimum at 1. Existing supported builds get an optional notice with Later. To require build 4, set minimum to 4 only after distributing the APK. The app then blocks normal screens on older builds and asks the user to contact Shrut for the APK; the API returns HTTP 426 for requests reporting an older build. Version headers are compatibility controls, not authentication.
+For a soft update to build 5, set latest to 5 and its display name, leaving minimum at 1. Existing supported builds get an optional notice with Later. To require build 5, set minimum to 5 only after distributing the APK. The app then blocks normal screens on older builds and asks the user to contact Shrut for the APK; the API returns HTTP 426 for requests reporting an older build. Version headers are compatibility controls, not authentication.
 
 The policy endpoint remains available without login even when an update is mandatory. Successful policies are cached per backend address. A failed check or a four-second timeout uses the cached policy: absence of a policy does not invent a mandatory update, and a previously confirmed mandatory update remains in force offline. Pending expenses are never removed by an update prompt. Optional notices can be dismissed for that version during the current app session.
 

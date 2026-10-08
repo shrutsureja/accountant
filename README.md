@@ -84,7 +84,7 @@ Amounts are integer paise throughout. PINs use salted PBKDF2 hashes supported by
 
 ## Private family APK builds
 
-Use `python3 scripts/build_apk.py --version 1.1.2 --code 4 --api-url https://api.accountant.shrutsureja.com/` to produce a signed `dist/Accountant-1.1.2-build-4-release.apk` locally. Nothing is uploaded. Production deployment uses the separate configuration described below; the family build is version 1.1.2/build 4.
+Use `python3 scripts/build_apk.py --version 1.1.3 --code 5 --api-url https://api.accountant.shrutsureja.com/` to produce a signed `dist/Accountant-1.1.3-build-5-release.apk` locally. Nothing is uploaded. Production deployment uses the separate configuration described below; the family build is version 1.1.3/build 5.
 
 See [local build and update instructions](docs/local-apk-builds.md) for signing-key backup, debug builds, parent login names, and optional/mandatory app updates.
 

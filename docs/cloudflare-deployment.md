@@ -19,10 +19,10 @@ curl --fail https://api.accountant.shrutsureja.com/health
 ## Private APK
 
 ```sh
-python3 scripts/build_apk.py --version 1.1.2 --code 4 --api-url https://api.accountant.shrutsureja.com/
+python3 scripts/build_apk.py --version 1.1.3 --code 5 --api-url https://api.accountant.shrutsureja.com/
 ```
 
-Output: `dist/Accountant-1.1.2-build-4-release.apk`. This file is local and ignored by Git; share it directly with family. Production policy advertises build 4/version 1.1.2, minimum build 1. Build and distribute future APKs before increasing the minimum.
+Output: `dist/Accountant-1.1.3-build-5-release.apk`. This file is local and ignored by Git; share it directly with family. Production policy advertises the latest available build, with minimum build 1. Build and distribute future APKs before increasing the minimum.
 
 Existing development installations use a different signing key. Do not uninstall them until all pending transactions are synced and data is backed up. A debug-signed build targeting the cloud can update these installations without deleting their data; the signed release is for clean installations or a deliberate backed-up migration.
 
@@ -43,3 +43,7 @@ Cloudflare automatically provisions the custom-domain certificate. A successful 
 HTTPS health and version-policy checks pass. Unauthenticated member access returns 401. Shrut, Alpa, and Hitesh have each logged in and synced. On 3 October, the production database contained 53 transactions, 16 categories, and 2 accounts after Shrut's pending phone changes uploaded; no duplicate transaction fingerprint groups were found. Build 3 synced successfully after the server-side batching fix, then build 4 was installed over it on Shrut's Redmi with local data preserved. Build 4 synced successfully and showed notification capture and expense alerts enabled. Backend tests, typecheck, Android unit tests, and the signed release build pass. The release APK remains local and has not been publicly uploaded.
 
 Sync applies category and account changes before dependent transactions in a database batch. Archiving either catalog item keeps its row and ID, so another phone can still sync an expense referencing it; the archived item is excluded from new selections. The sync timestamp migration keeps client edit time for conflict resolution and records server arrival time for downloads, so an old offline expense uploaded later reaches other phones. Different timezone offsets are compared as instants. A private production database export was taken before this migration. A genuine incoming payment notification has not yet been observed end to end with build 4.
+
+On 8 October, a fresh private D1 export was taken before changing categories. `Investment` was renamed to `Zerodha`, and `SIP` and `LIC` were added. Five confirmed expenses identified by merchant or note as SIP were moved to SIP, and the confirmed LIC expense was moved to LIC. Four confirmed toll-plaza expenses remain in Other pending the user's preferred Transport classification. Ignored transactions were not recategorized.
+
+Build 5 adds an Ignored tab in Needs Review with Restore, a one-step Save & confirm action for incomplete detections, full member-name chips in Transactions, and automatic account creation only when a trusted bank source identifies the funding account suffix. The signed build passes Android tests and release lint; no USB phone was connected for an end-to-end device check on 8 October. Build 5 uses the same signing certificate as build 4, so it can update an existing release installation without deleting local data.

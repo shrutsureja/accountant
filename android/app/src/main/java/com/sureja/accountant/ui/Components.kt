@@ -123,13 +123,16 @@ fun TransactionRow(item: TransactionListItem, onClick: () -> Unit = {}) {
             )
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(AccountantSpacing.xs)) {
                 Surface(color = AccountantColors.BlueLight, shape = MaterialTheme.shapes.small) {
-                    Text(item.memberName.ifBlank { "Unknown" }, Modifier.padding(horizontal = 8.dp, vertical = 3.dp), style = MaterialTheme.typography.labelSmall, color = AccountantColors.BlueDark)
+                    Text(item.memberName.ifBlank { "Unknown" }, Modifier.padding(horizontal = 8.dp, vertical = 3.dp), style = MaterialTheme.typography.labelSmall, color = AccountantColors.BlueDark, maxLines = 1)
                 }
                 Text("·", style = MaterialTheme.typography.labelSmall, color = AccountantColors.SecondaryText)
                 Text(
                     runCatching { OffsetDateTime.parse(item.occurredAt).format(DateTimeFormatter.ofPattern("d MMM, h:mm a")) }.getOrDefault(item.occurredAt),
+                    modifier = Modifier.weight(1f, fill = false),
                     style = MaterialTheme.typography.labelSmall,
                     color = AccountantColors.SecondaryText,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }

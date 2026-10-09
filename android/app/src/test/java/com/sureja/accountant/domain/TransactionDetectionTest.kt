@@ -18,6 +18,16 @@ class TransactionDetectionTest {
     @Test fun ignoresUpiMandateRequest(){assertNull(ParserRegistry().parse("A user has sent UPI AutoPay request of amount upto Rs. 900.00 on BHIM. Check mandates."))}
     @Test fun ignoresSbiCredit(){assertNull(ParserRegistry().parse("Dear Customer, INR 1,200.00 credited to your A/c No 123456 on 01/10/2026 -SBI"))}
     @Test fun parsesDecimalAndCommas(){assertEquals(125050,parser.parse("INR 1,250.50 paid from account ending 4432 to DMART via UPI")!!.amountPaise)}
+    @Test fun parsesZerodhaBankDebitWithoutCurrencyMarker(){
+        val result=ParserRegistry().parse("Dear UPI user A/C X1234 debited by 1000.00 on date 01Oct26 trf to ZERODHA BROKING Refno 123456789012 If not u? call-1800111109 for other services-18001234-SBI", "VK-SBIINB")!!
+        assertEquals(100000,result.amountPaise)
+        assertEquals("1234",result.accountLast4)
+        assertEquals("SBI",result.bankName)
+        assertEquals("123456789012",result.sourceReference)
+    }
+    @Test fun doesNotCaptureUpcomingZerodhaMandate(){
+        assertNull(ParserRegistry().parse("For upcoming mandate, your A/C will be debited with 140.00 towards sipzerodha, RRN 123456789012 -BOB"))
+    }
     @Test fun referenceFingerprintWinsAcrossSources(){val instant=Instant.parse("2026-09-30T10:00:00Z");assertEquals(TransactionFingerprint.create(84500,instant,"1234","Amazon","ABC12345"),TransactionFingerprint.create(84500,instant.plusSeconds(200),"1234","AMAZON","abc12345"))}
     @Test fun nearbyTransactionsShareFingerprint(){val instant=Instant.parse("2026-09-30T10:01:00Z");assertEquals(TransactionFingerprint.create(84500,instant,"1234","Amazon",null),TransactionFingerprint.create(84500,instant.plusSeconds(60),"1234","Amazon",null))}
 }

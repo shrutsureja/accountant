@@ -84,7 +84,7 @@ Amounts are integer paise throughout. PINs use salted PBKDF2 hashes supported by
 
 ## Private family APK builds
 
-Use `python3 scripts/build_apk.py --version 1.1.5 --code 7 --api-url https://api.accountant.shrutsureja.com/` to produce a signed `dist/Accountant-1.1.5-build-7-release.apk` locally. Nothing is uploaded. This build adds filtered spending shortcuts, PDF summaries, account editing, issue reporting, and a notification-listener status check. Production deployment uses the separate configuration described below.
+Use `python3 scripts/build_apk.py --version 1.1.6 --code 8 --api-url https://api.accountant.shrutsureja.com/` to produce a signed `dist/Accountant-1.1.6-build-8-release.apk` locally. Nothing is uploaded. This build reconciles matching SMS and notification detections and recognizes bank SMS that say “debited by” without a currency prefix (including Zerodha transfers). Existing installs can update in place without clearing local data. Production deployment uses the separate configuration described below.
 
 See [local build and update instructions](docs/local-apk-builds.md) for signing-key backup, debug builds, parent login names, and optional/mandatory app updates.
 

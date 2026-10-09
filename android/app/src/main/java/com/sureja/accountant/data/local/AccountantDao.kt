@@ -60,6 +60,10 @@ interface AccountantDao {
 
     @Query("SELECT * FROM transactions WHERE id=:id") suspend fun transaction(id: String): TransactionEntity?
     @Query("SELECT COUNT(*) FROM transactions WHERE fingerprint=:fingerprint AND status!='DELETED' AND deletedAt IS NULL") suspend fun fingerprintCount(fingerprint: String): Int
+    @Query("""SELECT * FROM transactions WHERE amountPaise=:amountPaise AND paidByUserId=:memberId
+        AND source!=:source AND source!='MANUAL' AND status!='DELETED' AND deletedAt IS NULL
+        AND abs((julianday(occurredAt)-julianday(:occurredAt))*86400) <= 120 LIMIT 30""")
+    suspend fun nearbyDetectedTransactions(amountPaise: Long, memberId: String, source: TransactionSource, occurredAt: String): List<TransactionEntity>
     @Query("SELECT * FROM transactions WHERE syncStatus!='SYNCED'") suspend fun pendingTransactions(): List<TransactionEntity>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertTransaction(item: TransactionEntity)
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertTransactions(items: List<TransactionEntity>)

@@ -10,6 +10,7 @@ import com.sureja.accountant.data.preferences.AuthStore
 import com.sureja.accountant.data.preferences.Session
 import com.sureja.accountant.domain.ParsedTransaction
 import com.sureja.accountant.domain.TransactionFingerprint
+import com.sureja.accountant.domain.DetectedTransactionMatcher
 import androidx.room.withTransaction
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -113,6 +114,13 @@ class AccountantRepository @Inject constructor(private val dao: AccountantDao,pr
         seedForOfflinePreview()
         val fingerprint=TransactionFingerprint.create(parsed.amountPaise,occurredAt,parsed.accountLast4,parsed.merchant,parsed.sourceReference)
         if (dao.fingerprintCount(fingerprint)>0) return@withLock false
+        val nearby = dao.nearbyDetectedTransactions(parsed.amountPaise, member, source, occurredAt.toString())
+        if (nearby.isNotEmpty()) {
+            val accountSuffixes = dao.allAccountRows().associate { it.id to it.last4 }
+            if (nearby.any { existing ->
+                DetectedTransactionMatcher.isSamePayment(parsed, source, occurredAt, existing, accountSuffixes[existing.accountId])
+            }) return@withLock false
+        }
         val rules=dao.merchantRules(); val category=rules.firstOrNull { parsed.merchant?.contains(it.merchantPattern,true)==true }?.categoryId
         val now=OffsetDateTime.now().toString()
         val detectedPayment = PaymentMethod.valueOf(parsed.paymentMethod)

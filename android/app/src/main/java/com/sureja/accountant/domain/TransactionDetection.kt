@@ -26,18 +26,19 @@ class GenericDebitParser : TransactionMessageParser {
     private val outgoingDespiteCredit = Regex("(?i)\\bdebited\\s+from\\b|\\bdebited\\b.{0,100}\\bcredited\\s+to\\b")
     private val unsuccessful = Regex("(?i)\\b(fail(?:ed|ure)?|declined|rejected|pending|revers(?:ed|al)|cancel(?:led|ed)|request|mandate)\\b")
     private val amount = Regex("(?i)(?:INR|Rs\\.?|₹)\\s*([0-9,]+(?:\\.[0-9]{1,2})?)")
+    private val debitedByAmount = Regex("(?i)\\bdebited\\s+by\\s+([0-9,]+(?:\\.[0-9]{1,2})?)\\b")
     private val account = Regex("(?i)(?:a/c|acct|account)(?:\\s+(?:ending|no\\.?))?\\s*(?:\\.{2,}|xx|x|\\*)*([0-9]{4,16})")
     private val debitedFromAccount = Regex("(?i)\\bdebited\\s+from\\s+(?:(?:a/c|acct|account)\\s*)?(?:[x*]+|\\.{2,})?([0-9]{4,16})\\b")
     private val transferFromAccount = Regex("(?i)\\b(?:sent|paid|spent|transferred)\\b.{0,45}?\\bfrom\\s+(?:[a-z ]{0,20})?(?:a/c|acct|account)\\s*(?:ending\\s*)?(?:[x*]+|\\.{2,})?([0-9]{4,16})\\b")
     private val accountDebited = Regex("(?i)\\b(?:a/c|acct|account)\\s*(?:[x*]+|\\.{2,})?([0-9]{4,16})\\s+(?:was\\s+|is\\s+)?debited\\b")
     private val merchant = Regex("(?i)(?:at|to|towards)\\s+([A-Z0-9][A-Z0-9 .&_-]{1,40}?)(?:\\s+(?:on|via|ref|upi)|[.,]|$)")
-    private val reference = Regex("(?i)(?:ref(?:erence)?|utr|txn(?: id)?)[: #.-]*([A-Z0-9]{6,30})")
+    private val reference = Regex("(?i)(?:ref(?:erence)?(?:no\\.?)?|utr|txn(?: id)?)[: #.-]*([A-Z0-9]{6,30})")
     override fun canParse(message: String) = debit.containsMatchIn(message) &&
         (!credit.containsMatchIn(message) || outgoingDespiteCredit.containsMatchIn(message)) &&
         !unsuccessful.containsMatchIn(message)
     override fun parse(message: String): ParsedTransaction? {
         if (!canParse(message)) return null
-        val raw = amount.find(message)?.groupValues?.get(1)?.replace(",", "")?.toBigDecimalOrNull() ?: return null
+        val raw = (amount.find(message) ?: debitedByAmount.find(message))?.groupValues?.get(1)?.replace(",", "")?.toBigDecimalOrNull() ?: return null
         val amountPaise = runCatching { raw.movePointRight(2).longValueExact() }.getOrNull()?.takeIf { it > 0 } ?: return null
         val fundingAccount = debitedFromAccount.find(message)?.groupValues?.get(1)
             ?: transferFromAccount.find(message)?.groupValues?.get(1)

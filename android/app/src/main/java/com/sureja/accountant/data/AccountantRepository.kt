@@ -149,6 +149,18 @@ class AccountantRepository @Inject constructor(private val dao: AccountantDao,pr
         val now=OffsetDateTime.now().toString();val user=authStore.session()?.userId
         dao.upsertAccount(AccountEntity(UUID.randomUUID().toString(),name.trim(),bank.trim().ifBlank{null},last4.trim().ifBlank{null},owner,payment,true,now,now,updatedBy=user,syncStatus=SyncStatus.PENDING_CREATE))
     }
+    suspend fun updateAccount(id: String, name: String, bank: String, last4: String, owner: String?, payment: PaymentMethod) {
+        if (name.isBlank() || (last4.isNotBlank() && !last4.matches(Regex("\\d{4}")))) return
+        val old = dao.allAccountRows().firstOrNull { it.id == id && it.deletedAt == null } ?: return
+        if (old.id == "account-cash") return
+        dao.upsertAccount(old.copy(
+            name = name.trim(), bankName = bank.trim().ifBlank { null }, last4 = last4.trim().ifBlank { null },
+            ownerUserId = owner?.ifBlank { null }, paymentMethod = payment,
+            updatedAt = OffsetDateTime.now().toString(), updatedBy = authStore.session()?.userId,
+            version = old.version + 1,
+            syncStatus = if (old.syncStatus == SyncStatus.PENDING_CREATE) old.syncStatus else SyncStatus.PENDING_UPDATE,
+        ))
+    }
     suspend fun setAccountActive(id:String,active:Boolean) {
         val old=dao.accounts().firstOrNull{it.id==id}?:return
         dao.upsertAccount(old.copy(active=active,updatedAt=OffsetDateTime.now().toString(),updatedBy=authStore.session()?.userId,version=old.version+1,syncStatus=if(old.syncStatus==SyncStatus.PENDING_CREATE)old.syncStatus else SyncStatus.PENDING_UPDATE))

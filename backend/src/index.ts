@@ -8,6 +8,7 @@ import { catalogRoutes } from './routes/catalog';
 import { analyticsRoutes } from './routes/analytics';
 import { syncRoutes } from './routes/sync';
 import { requireAuth } from './middleware/auth';
+import { issueRoutes } from './routes/issues';
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
@@ -20,6 +21,7 @@ app.use('/api/v1/*', requireAuth);
 app.route('/api/v1/transactions', transactionRoutes);
 app.route('/api/v1/analytics', analyticsRoutes);
 app.route('/api/v1/sync', syncRoutes);
+app.route('/api/v1/issues', issueRoutes);
 app.route('/api/v1', catalogRoutes);
 app.notFound((c) => c.json({ error: 'Not found' }, 404));
 app.onError((error, c) => {
@@ -28,4 +30,3 @@ app.onError((error, c) => {
 });
 
 export default app;
-

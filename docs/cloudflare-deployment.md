@@ -19,10 +19,10 @@ curl --fail https://api.accountant.shrutsureja.com/health
 ## Private APK
 
 ```sh
-python3 scripts/build_apk.py --version 1.1.3 --code 5 --api-url https://api.accountant.shrutsureja.com/
+python3 scripts/build_apk.py --version 1.1.5 --code 7 --api-url https://api.accountant.shrutsureja.com/
 ```
 
-Output: `dist/Accountant-1.1.3-build-5-release.apk`. This file is local and ignored by Git; share it directly with family. Production policy advertises the latest available build, with minimum build 1. Build and distribute future APKs before increasing the minimum.
+Output: `dist/Accountant-1.1.5-build-7-release.apk`. This file is local and ignored by Git; share it directly with family. Production policy advertises the latest available build, with minimum build 1. Build and distribute future APKs before increasing the minimum.
 
 Existing development installations use a different signing key. Do not uninstall them until all pending transactions are synced and data is backed up. A debug-signed build targeting the cloud can update these installations without deleting their data; the signed release is for clean installations or a deliberate backed-up migration.
 

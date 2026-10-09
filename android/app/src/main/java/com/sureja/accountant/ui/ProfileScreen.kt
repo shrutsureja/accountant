@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
+import com.sureja.accountant.capture.TransactionNotificationService
 import com.sureja.accountant.ui.theme.AccountantColors
 import com.sureja.accountant.ui.theme.AccountantSpacing
 import java.time.YearMonth
@@ -44,6 +45,8 @@ fun ProfileScreen(
     onScanSms: (YearMonth) -> Unit,
     onEnableLiveSms: () -> Unit,
     onNotificationAccess: () -> Unit,
+    onBackgroundAutostart: () -> Unit,
+    onIssues: () -> Unit,
     onCategories: () -> Unit,
     onAccounts: () -> Unit,
 ) {
@@ -53,6 +56,7 @@ fun ProfileScreen(
     var notificationEnabled by remember { mutableStateOf(NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)) }
     var alertsEnabled by remember { mutableStateOf(NotificationManagerCompat.from(context).areNotificationsEnabled()) }
     var smsEnabled by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED) }
+    val listenerConnected by TransactionNotificationService.connected.collectAsState()
     DisposableEffect(lifecycleOwner, context) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
@@ -89,7 +93,12 @@ fun ProfileScreen(
         item { ProfileSettingRow(Icons.Default.Download, "Export CSV", null, onExport) }
         item { ProfileSettingRow(Icons.Default.PictureAsPdf, "Export PDF summary", "Monthly totals by person and category", onExportPdf) }
         item { ProfileSection("AUTOMATION") }
-        item { ProfileSettingRow(Icons.Default.Notifications, "Notification access", if (notificationEnabled) "Enabled · Bank and UPI payments" else "Permission required · Capture bank and UPI payments", onNotificationAccess) }
+        item { ProfileSettingRow(Icons.Default.Notifications, "Notification access", when {
+            !notificationEnabled -> "Permission required · Capture bank and UPI payments"
+            listenerConnected -> "Active on this phone"
+            else -> "Allowed, but listener is not active"
+        }, onNotificationAccess) }
+        if (notificationEnabled && !listenerConnected) item { ProfileSettingRow(Icons.Default.Settings, "Background autostart", "Allow Accountant to run on this phone", onBackgroundAutostart) }
         item { ProfileSettingRow(Icons.Default.NotificationsActive, "Expense alerts", if (alertsEnabled) "Enabled" else "Tap to enable", {
             context.startActivity(android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
                 .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName))
@@ -98,6 +107,7 @@ fun ProfileScreen(
         item { ProfileSection("MANAGE") }
         item { ProfileSettingRow(Icons.Default.Category, "Categories", null, onCategories) }
         item { ProfileSettingRow(Icons.Default.AccountBalance, "Accounts", null, onAccounts) }
+        item { ProfileSettingRow(Icons.Default.BugReport, "Reports & requests", "Report bugs or suggest features", onIssues) }
         item { ProfileSection("SECURITY") }
         item {
             Surface(onClick = { onBiometricChange(!biometricEnabled) }, color = Color.Transparent) {

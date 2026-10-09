@@ -119,7 +119,7 @@ private fun MainActivity.MainShell(session:SessionViewModel) {
         Toast.makeText(activity, if (granted) "Live SMS detection enabled" else "Live SMS detection remains off", Toast.LENGTH_LONG).show()
     }
     Scaffold(containerColor = MaterialTheme.colorScheme.background, bottomBar = {
-        if (route !in setOf("review", "categories", "accounts")) AccountantNavigationBar(items, if (route?.startsWith("transactions/filter/") == true) "transactions" else route) { destination ->
+        if (route !in setOf("review", "categories", "accounts", "issues")) AccountantNavigationBar(items, if (route?.startsWith("transactions/filter/") == true) "transactions" else route) { destination ->
             nav.navigate(destination) { popUpTo("home") { saveState = true }; launchSingleTop = true; restoreState = true }
         }
     }) { contentPadding ->
@@ -144,13 +144,19 @@ private fun MainActivity.MainShell(session:SessionViewModel) {
                     onScanSms = { month -> scanMonth = month.toString(); smsPermission.launch(Manifest.permission.READ_SMS) },
                     onEnableLiveSms = { liveSmsPermission.launch(Manifest.permission.RECEIVE_SMS) },
                     onNotificationAccess = { activity.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) },
+                    onBackgroundAutostart = {
+                        runCatching { activity.startActivity(Intent("miui.intent.action.OP_AUTO_START")) }
+                            .onFailure { activity.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${activity.packageName}"))) }
+                    },
                     onCategories = { nav.navigate("categories") },
                     onAccounts = { nav.navigate("accounts") },
+                    onIssues = { nav.navigate("issues") },
                 )
             }
             composable("review") { ReviewScreen(onBack = { nav.popBackStack() }) }
             composable("categories") { CategoriesScreen(onBack = { nav.popBackStack() }, onCategory = { openFilteredTransactions("category", it) }) }
             composable("accounts") { AccountsScreen(onBack = { nav.popBackStack() }) }
+            composable("issues") { IssuesScreen(onBack = { nav.popBackStack() }) }
         }
     }
 }

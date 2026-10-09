@@ -84,7 +84,7 @@ Amounts are integer paise throughout. PINs use salted PBKDF2 hashes supported by
 
 ## Private family APK builds
 
-Use `python3 scripts/build_apk.py --version 1.1.4 --code 6 --api-url https://api.accountant.shrutsureja.com/` to produce a signed `dist/Accountant-1.1.4-build-6-release.apk` locally. Nothing is uploaded. This build adds category/person shortcuts into filtered Transactions, a PDF summary export, and notification-listener reconnect handling. Production deployment uses the separate configuration described below.
+Use `python3 scripts/build_apk.py --version 1.1.5 --code 7 --api-url https://api.accountant.shrutsureja.com/` to produce a signed `dist/Accountant-1.1.5-build-7-release.apk` locally. Nothing is uploaded. This build adds filtered spending shortcuts, PDF summaries, account editing, issue reporting, and a notification-listener status check. Production deployment uses the separate configuration described below.
 
 See [local build and update instructions](docs/local-apk-builds.md) for signing-key backup, debug builds, parent login names, and optional/mandatory app updates.
 

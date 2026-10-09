@@ -115,7 +115,9 @@ fun TransactionRow(item: TransactionListItem, onClick: () -> Unit = {}) {
         CategoryBadge(item.categoryName ?: "Not categorized")
         Spacer(Modifier.width(AccountantSpacing.md))
         Column(Modifier.weight(1f).padding(end = AccountantSpacing.sm)) {
-            Text(item.merchant?.takeIf { it.isNotBlank() } ?: item.categoryName ?: "Expense", style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            val title = listOf(item.merchant, item.note, item.categoryName, "Expense")
+                .first { !it.isNullOrBlank() }!!.trim().replace(Regex("\\s+"), " ")
+            Text(title, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(
                 listOfNotNull(item.categoryName, if (item.paymentMethod == PaymentMethod.UPI) "UPI" else item.paymentMethod.name.lowercase().replaceFirstChar(Char::uppercase)).joinToString(" • "),
                 style = MaterialTheme.typography.bodySmall,

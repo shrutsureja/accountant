@@ -10,16 +10,19 @@ import com.sureja.accountant.data.AccountantRepository
 import com.sureja.accountant.data.local.TransactionSource
 import com.sureja.accountant.domain.NotificationTransactionParser
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableStateFlow
 import java.time.Instant
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class TransactionNotificationService : NotificationListenerService() {
+    companion object { val connected = MutableStateFlow(false) }
     @Inject lateinit var repository: AccountantRepository
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onListenerConnected() {
         super.onListenerConnected()
+        connected.value = true
         Log.i("AccountantCapture", "Notification listener connected")
         // Recover still-visible payments after Android reconnects the listener.
         runCatching { activeNotifications }.getOrNull()?.forEach(::onNotificationPosted)
@@ -27,6 +30,7 @@ class TransactionNotificationService : NotificationListenerService() {
 
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
+        connected.value = false
         Log.w("AccountantCapture", "Notification listener disconnected; requesting rebind")
         requestRebind(ComponentName(this, TransactionNotificationService::class.java))
     }
@@ -53,5 +57,5 @@ class TransactionNotificationService : NotificationListenerService() {
         }
     }
 
-    override fun onDestroy() { scope.cancel(); super.onDestroy() }
+    override fun onDestroy() { connected.value = false; scope.cancel(); super.onDestroy() }
 }

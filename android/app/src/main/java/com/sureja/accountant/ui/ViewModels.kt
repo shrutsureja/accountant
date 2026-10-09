@@ -124,5 +124,6 @@ data class ReportsState(val total:Long=0,val previousTotal:Long=0,val categories
     fun renameCategory(item:CategoryEntity,name:String)=viewModelScope.launch{if(name.isNotBlank())repository.renameCategory(item.id,name)}
     fun toggleCategory(item:CategoryEntity)=viewModelScope.launch{repository.setCategoryActive(item.id,!item.active)}
     fun addAccount(name:String,bank:String,last4:String,owner:String?,payment:PaymentMethod)=viewModelScope.launch{if(name.isNotBlank()&&(last4.isBlank()||last4.length==4))repository.addAccount(name,bank,last4,owner,payment)}
+    fun updateAccount(item:AccountEntity,name:String,bank:String,last4:String,owner:String?,payment:PaymentMethod)=viewModelScope.launch{repository.updateAccount(item.id,name,bank,last4,owner,payment)}
     fun toggleAccount(item:AccountEntity)=viewModelScope.launch{repository.setAccountActive(item.id,!item.active)}
 }

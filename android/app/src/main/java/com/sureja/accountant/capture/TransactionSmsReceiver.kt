@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.provider.Telephony
+import android.util.Log
 import dagger.hilt.android.AndroidEntryPoint
 import com.sureja.accountant.data.AccountantRepository
 import com.sureja.accountant.data.local.TransactionSource
@@ -26,6 +27,11 @@ class TransactionSmsReceiver : BroadcastReceiver() {
                     val receivedAt = parts.minOf { it.timestampMillis }
                     ParserRegistry().parse(body, parts.first().originatingAddress)?.let { if (repository.addDetected(it,TransactionSource.SMS,Instant.ofEpochMilli(receivedAt))) DetectionNotifier.show(context) }
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                // Keep private message contents out of diagnostic logs.
+                Log.w("AccountantCapture", "Could not store a detected SMS")
             } finally { pending.finish() }
         }
     }

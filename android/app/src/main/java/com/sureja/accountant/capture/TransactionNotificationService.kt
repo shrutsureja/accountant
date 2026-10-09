@@ -1,6 +1,7 @@
 package com.sureja.accountant.capture
 
 import android.app.Notification
+import android.content.ComponentName
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
@@ -19,8 +20,15 @@ class TransactionNotificationService : NotificationListenerService() {
 
     override fun onListenerConnected() {
         super.onListenerConnected()
+        Log.i("AccountantCapture", "Notification listener connected")
         // Recover still-visible payments after Android reconnects the listener.
         runCatching { activeNotifications }.getOrNull()?.forEach(::onNotificationPosted)
+    }
+
+    override fun onListenerDisconnected() {
+        super.onListenerDisconnected()
+        Log.w("AccountantCapture", "Notification listener disconnected; requesting rebind")
+        requestRebind(ComponentName(this, TransactionNotificationService::class.java))
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {

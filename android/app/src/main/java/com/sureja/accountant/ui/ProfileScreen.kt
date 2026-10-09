@@ -21,6 +21,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import com.sureja.accountant.ui.theme.AccountantColors
 import com.sureja.accountant.ui.theme.AccountantSpacing
 import java.time.YearMonth
@@ -37,6 +40,7 @@ fun ProfileScreen(
     onLogout: () -> Unit,
     onSync: () -> Unit,
     onExport: () -> Unit,
+    onExportPdf: () -> Unit,
     onScanSms: (YearMonth) -> Unit,
     onEnableLiveSms: () -> Unit,
     onNotificationAccess: () -> Unit,
@@ -48,11 +52,13 @@ fun ProfileScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     var notificationEnabled by remember { mutableStateOf(NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)) }
     var alertsEnabled by remember { mutableStateOf(NotificationManagerCompat.from(context).areNotificationsEnabled()) }
+    var smsEnabled by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED) }
     DisposableEffect(lifecycleOwner, context) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 notificationEnabled = NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
                 alertsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
+                smsEnabled = ContextCompat.checkSelfPermission(context, Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -81,13 +87,14 @@ fun ProfileScreen(
         item { ProfileSettingRow(Icons.Default.Sync, "Sync now", syncSubtitle(lastSyncAt), onSync) }
         item { ProfileSettingRow(Icons.Default.Sms, "Scan messages", "Choose a month", { showScanMonths = true }) }
         item { ProfileSettingRow(Icons.Default.Download, "Export CSV", null, onExport) }
+        item { ProfileSettingRow(Icons.Default.PictureAsPdf, "Export PDF summary", "Monthly totals by person and category", onExportPdf) }
         item { ProfileSection("AUTOMATION") }
         item { ProfileSettingRow(Icons.Default.Notifications, "Notification access", if (notificationEnabled) "Enabled · Bank and UPI payments" else "Permission required · Capture bank and UPI payments", onNotificationAccess) }
         item { ProfileSettingRow(Icons.Default.NotificationsActive, "Expense alerts", if (alertsEnabled) "Enabled" else "Tap to enable", {
             context.startActivity(android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
                 .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName))
         }) }
-        item { ProfileSettingRow(Icons.Default.Sms, "Live SMS detection", "Allow incoming message detection", onEnableLiveSms) }
+        item { ProfileSettingRow(Icons.Default.Sms, "Live SMS detection", if (smsEnabled) "Enabled on this phone" else "Permission required on this phone", onEnableLiveSms) }
         item { ProfileSection("MANAGE") }
         item { ProfileSettingRow(Icons.Default.Category, "Categories", null, onCategories) }
         item { ProfileSettingRow(Icons.Default.AccountBalance, "Accounts", null, onAccounts) }

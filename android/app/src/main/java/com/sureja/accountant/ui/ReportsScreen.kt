@@ -4,6 +4,7 @@ package com.sureja.accountant.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -32,7 +33,7 @@ import java.util.Locale
 import kotlin.math.abs
 
 @Composable
-fun ReportsScreen(viewModel: ReportsViewModel = hiltViewModel()) {
+fun ReportsScreen(onCategory: (String) -> Unit, onPerson: (String) -> Unit, viewModel: ReportsViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsState()
     val month by viewModel.selectedMonth.collectAsState()
     var tab by remember { mutableIntStateOf(0) }
@@ -81,11 +82,11 @@ fun ReportsScreen(viewModel: ReportsViewModel = hiltViewModel()) {
                 }
                 1 -> {
                     if (state.categories.isEmpty()) item { EmptyState("No category data", "Confirmed expenses will appear here by category.") }
-                    else items(state.categories, key = { it.id }) { RankedSpendRow(it, state.total) }
+                    else items(state.categories, key = { it.id }) { RankedSpendRow(it, state.total) { onCategory(it.id) } }
                 }
                 else -> {
                     if (state.people.isEmpty()) item { EmptyState("No member data", "Household spending will appear here.") }
-                    else items(state.people, key = { it.id }) { RankedSpendRow(it, state.total) }
+                    else items(state.people, key = { it.id }) { RankedSpendRow(it, state.total) { onPerson(it.id) } }
                 }
             }
         }
@@ -139,9 +140,9 @@ private fun ReportMetric(label: String, value: String, modifier: Modifier = Modi
 }
 
 @Composable
-private fun RankedSpendRow(item: NamedAmount, total: Long) {
+private fun RankedSpendRow(item: NamedAmount, total: Long, onClick: () -> Unit) {
     val share = if (total > 0) item.amountPaise.toDouble() / total else 0.0
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(AccountantSpacing.sm)) {
+    Column(Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(onClick = onClick), verticalArrangement = Arrangement.spacedBy(AccountantSpacing.sm)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(item.name, style = MaterialTheme.typography.titleSmall)
             Text(money(item.amountPaise), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)

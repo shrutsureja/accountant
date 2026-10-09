@@ -25,7 +25,14 @@ import com.sureja.accountant.ui.theme.AccountantSpacing
 private enum class TransactionPicker { CATEGORY, PERSON }
 
 @Composable
-fun TransactionsScreen(viewModel: TransactionsViewModel = hiltViewModel(), catalog: CatalogViewModel = hiltViewModel()) {
+fun TransactionsScreen(initialCategoryId: String? = null, initialPersonId: String? = null, viewModel: TransactionsViewModel = hiltViewModel(), catalog: CatalogViewModel = hiltViewModel()) {
+    LaunchedEffect(initialCategoryId, initialPersonId) {
+        if (initialCategoryId != null || initialPersonId != null) {
+            viewModel.category.value = initialCategoryId
+            viewModel.member.value = initialPersonId
+            viewModel.thisMonth.value = false
+        }
+    }
     val transactions by viewModel.items.collectAsState()
     val search by viewModel.search.collectAsState()
     val personId by viewModel.member.collectAsState()

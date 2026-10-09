@@ -3,6 +3,7 @@
 package com.sureja.accountant.ui
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -22,7 +23,7 @@ import com.sureja.accountant.ui.theme.AccountantColors
 import com.sureja.accountant.ui.theme.AccountantSpacing
 
 @Composable
-fun CategoriesScreen(onBack: () -> Unit, viewModel: CatalogViewModel = hiltViewModel()) {
+fun CategoriesScreen(onBack: () -> Unit, onCategory: (String) -> Unit, viewModel: CatalogViewModel = hiltViewModel()) {
     val categories by viewModel.categories.collectAsState()
     var editing by remember { mutableStateOf<CategoryEntity?>(null) }
     var showDialog by remember { mutableStateOf(false) }
@@ -50,13 +51,13 @@ fun CategoriesScreen(onBack: () -> Unit, viewModel: CatalogViewModel = hiltViewM
             ) {
                 items(categories, key = { it.id }) { category ->
                     var menuOpen by remember(category.id) { mutableStateOf(false) }
-                    Row(Modifier.fillMaxWidth().heightIn(min = 60.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().heightIn(min = 60.dp).clickable { onCategory(category.id) }, verticalAlignment = Alignment.CenterVertically) {
                         Surface(shape = MaterialTheme.shapes.small, color = AccountantColors.BlueLight) {
                             Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
                                 CategoryIcon(category.name)
                             }
                         }
-                        Column(Modifier.weight(1f).padding(horizontal = AccountantSpacing.md)) {
+                        Column(Modifier.weight(1f).heightIn(min = 60.dp).padding(horizontal = AccountantSpacing.md), verticalArrangement = Arrangement.Center) {
                             Text(category.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
                             if (!category.active) Text("Archived", style = MaterialTheme.typography.bodySmall, color = AccountantColors.SecondaryText)
                         }

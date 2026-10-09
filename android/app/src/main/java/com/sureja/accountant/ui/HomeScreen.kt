@@ -33,6 +33,8 @@ fun HomeScreen(
     onReview: () -> Unit,
     onTransactions: () -> Unit,
     onReports: () -> Unit,
+    onCategory: (String) -> Unit,
+    onPerson: (String) -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -81,10 +83,10 @@ fun HomeScreen(
                 }
             }
             item { SectionTitle("Household spending") }
-            items(state.people, key = { it.id }) { PersonSpendRow(it, state.total, showBar = true) }
+            items(state.people, key = { it.id }) { PersonSpendRow(it, state.total, showBar = true, onClick = { onPerson(it.id) }) }
             item { SectionTitle("Top categories", onReports, "View reports") }
             if (state.categories.isEmpty()) item { Text("No category spending yet", style = MaterialTheme.typography.bodySmall, color = AccountantColors.SecondaryText) }
-            else items(state.categories, key = { it.id }) { PersonSpendRow(it, state.total, showBar = true, category = true) }
+            else items(state.categories, key = { it.id }) { PersonSpendRow(it, state.total, showBar = true, category = true, onClick = { onCategory(it.id) }) }
             item { SectionTitle("Recent expenses", onTransactions, "See all") }
             if (state.recent.isEmpty()) item { Text("No recent expenses yet", style = MaterialTheme.typography.bodySmall, color = AccountantColors.SecondaryText) }
             else items(state.recent.take(4), key = { it.id }) { TransactionRow(it, onTransactions) }
@@ -136,8 +138,8 @@ private fun HomeMetric(label: String, value: String, modifier: Modifier = Modifi
 }
 
 @Composable
-private fun PersonSpendRow(item: NamedAmount, total: Long, showBar: Boolean, category: Boolean = false) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(AccountantSpacing.md)) {
+private fun PersonSpendRow(item: NamedAmount, total: Long, showBar: Boolean, category: Boolean = false, onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(onClick = onClick), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(AccountantSpacing.md)) {
         if (category) CategoryBadge(item.name) else MemberAvatar(item.name)
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(AccountantSpacing.sm)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {

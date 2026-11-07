@@ -7,10 +7,12 @@ Builds stay on your PC. No GitHub Release, email delivery, or public APK hosting
 For the first Google Play internal-testing release, build the signed App Bundle:
 
 ```sh
-python3 scripts/build_apk.py --version 1.1.8 --code 9 --api-url https://api.accountant.shrutsureja.com/ --bundle
+python3 scripts/build_apk.py --version 1.1.8 --code 10 --api-url https://api.accountant.shrutsureja.com/ --bundle
 ```
 
-The output is `dist/Accountant-1.1.8.aab`. The `9` is Android's internal, increasing version code; users see only `1.1.8`. Nothing is uploaded by the script. Before rolling out this bundle, choose the option in Play App Signing to provide the existing family app-signing key. Otherwise Play's generated signing key cannot update the release APKs already installed on the three phones. Do not uninstall an existing installation to work around a signing mismatch.
+The output is `dist/Accountant-1.1.8.aab`. The `10` is Android's internal, increasing version code; users see only `1.1.8`. Nothing is uploaded by the script. The first bundle, version code 9, was uploaded to the Play draft with the family key as its upload key. Before rolling out, provide the existing family app-signing key to Play and register the new upload certificate at `~/.config/accountant-build/accountant-play-upload-certificate.pem` through **Request upload key reset**. Only upload the code-10 bundle after Play shows the family app-signing certificate and confirms that it accepts the new upload certificate. The code-9 bundle cannot be reused after changing the app-signing key. Do not uninstall an existing installation to work around a signing mismatch.
+
+Family APKs continue to use `~/.config/accountant-build/accountant-release.p12`. Play bundles use `~/.config/accountant-build/accountant-play-upload.p12`. Back up both keystores and their password files privately. The `.pem` file is the public upload certificate; it is safe to provide to Play, but never upload either `.p12` file or a password as a plain attachment.
 
 From the repository root, with Java 21 and the Android SDK configured:
 

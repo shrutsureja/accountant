@@ -33,7 +33,7 @@ android {
             if (path != null) {
                 storeFile = file(path)
                 storePassword = System.getenv("ACCOUNTANT_STORE_PASSWORD")
-                keyAlias = "accountant"
+                keyAlias = System.getenv("ACCOUNTANT_KEY_ALIAS") ?: "accountant"
                 keyPassword = System.getenv("ACCOUNTANT_STORE_PASSWORD")
             }
         }

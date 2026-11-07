@@ -4,6 +4,14 @@ Builds stay on your PC. No GitHub Release, email delivery, or public APK hosting
 
 ## Build
 
+For the first Google Play internal-testing release, build the signed App Bundle:
+
+```sh
+python3 scripts/build_apk.py --version 1.1.8 --code 9 --api-url https://api.accountant.shrutsureja.com/ --bundle
+```
+
+The output is `dist/Accountant-1.1.8.aab`. The `9` is Android's internal, increasing version code; users see only `1.1.8`. Nothing is uploaded by the script. Before rolling out this bundle, choose the option in Play App Signing to provide the existing family app-signing key. Otherwise Play's generated signing key cannot update the release APKs already installed on the three phones. Do not uninstall an existing installation to work around a signing mismatch.
+
 From the repository root, with Java 21 and the Android SDK configured:
 
 ```sh

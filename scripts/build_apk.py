@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Build a versioned, locally signed Accountant APK. Nothing is uploaded.
+"""Build a versioned, locally signed Accountant APK or Play App Bundle. Nothing is uploaded.
 Example: python3 scripts/build_apk.py --version 1.1.0 --code 2 --api-url https://api.accountant.shrutsureja.com/
+Use --bundle for the signed AAB required by a Google Play internal-testing release.
 Use --debug for local HTTP testing; debug APKs cannot replace release APKs.
 """
 import argparse
@@ -21,7 +22,10 @@ def main():
     parser.add_argument('--code', required=True, type=int, help='Increasing Android build number, e.g. 2')
     parser.add_argument('--api-url', required=True, help='Reachable backend base URL')
     parser.add_argument('--debug', action='store_true', help='Local test APK with debug signing and HTTP support')
+    parser.add_argument('--bundle', action='store_true', help='Build a signed release AAB for Google Play')
     args = parser.parse_args()
+    if args.debug and args.bundle:
+        parser.error('--bundle is only available for release builds.')
     if not re.fullmatch(r'\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?', args.version) or not 1 <= args.code <= 2100000000:
         parser.error('Use a version such as 1.1.0 and a positive build code <= 2100000000.')
     url = args.api_url.rstrip('/') + '/'
@@ -63,19 +67,20 @@ def main():
             print(f'Created release signing files in {state_dir}. Back up this folder privately.', flush=True)
         env['ACCOUNTANT_KEYSTORE'] = str(key_file.resolve())
         env['ACCOUNTANT_STORE_PASSWORD'] = password_file.read_text().strip()
-    task = 'assembleDebug' if args.debug else 'assembleRelease'
+    task = 'assembleDebug' if args.debug else ('bundleRelease' if args.bundle else 'assembleRelease')
     subprocess.run([str(root / 'android/gradlew'), ':app:testDebugUnitTest', f':app:{task}', f'-PAPP_VERSION_NAME={args.version}', f'-PAPP_VERSION_CODE={args.code}', f'-PAPI_BASE_URL={url}', '-PLOCAL_AUTH_BYPASS=false'], cwd=root / 'android', env=env, check=True)
-    source = root / f'android/app/build/outputs/apk/{variant}/app-{variant}.apk'
+    extension = 'aab' if args.bundle else 'apk'
+    source = root / ('android/app/build/outputs/bundle/release/app-release.aab' if args.bundle else f'android/app/build/outputs/apk/{variant}/app-{variant}.apk')
     if not source.exists():
-        raise RuntimeError('Expected signed APK was not produced.')
+        raise RuntimeError(f'Expected signed {extension.upper()} was not produced.')
     target_dir = root / 'dist'
     target_dir.mkdir(exist_ok=True)
-    target = target_dir / f'Accountant-{args.version}-build-{args.code}-{variant}.apk'
+    target = target_dir / (f'Accountant-{args.version}.aab' if args.bundle else f'Accountant-{args.version}-build-{args.code}-{variant}.apk')
     shutil.copy2(source, target)
     digest = hashlib.sha256(target.read_bytes()).hexdigest()
-    target.with_suffix('.apk.sha256').write_text(f'{digest}  {target.name}\n')
+    target.with_suffix(f'.{extension}.sha256').write_text(f'{digest}  {target.name}\n')
     record.write_text(json.dumps({'version': args.version, 'code': args.code, 'apiUrl': url}, indent=2))
-    print(f'\nAPK: {target}\nSHA-256: {digest}\nBackend: {url}\nNo files were uploaded.')
+    print(f'\n{extension.upper()}: {target}\nSHA-256: {digest}\nBackend: {url}\nNo files were uploaded.')
 
 
 if __name__ == '__main__':

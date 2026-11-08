@@ -26,6 +26,8 @@ Enable the Google Play Developer API in a Google Cloud project and grant the ser
 
 Restrict who can run the environment, and never commit these values. The values are restored into temporary files on the GitHub runner. The workflow publishes only after you manually start it; ordinary pushes run CI but do not create a Play release.
 
+Play may show two optional crash-diagnostic warnings for these bundles. There is no R8/ProGuard mapping file because release builds do not obfuscate code; enabling obfuscation solely to remove this warning would change runtime behavior. The native libraries currently packaged from AndroidX Graphics and DataStore are already stripped by their publishers: they contain no symbol table or debug sections. Configuring `ndk.debugSymbolLevel` produced no symbol metadata in a test AAB, so there is no genuine native-symbol archive to upload. Revisit this if the libraries supply unstripped symbols or the app adds its own native code.
+
 From the repository root, with Java 21 and the Android SDK configured:
 
 ```sh

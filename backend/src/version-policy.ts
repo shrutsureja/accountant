@@ -17,7 +17,7 @@ export function appVersionPolicy(env: Partial<Bindings>) {
     minimumSupportedVersionCode,
     latestVersionCode,
     latestVersionName: env.APP_LATEST_VERSION_NAME ?? '1.1.0',
-    message: 'Contact Shrut for the updated Accountant APK.',
+    message: 'Update Accountant from Google Play. Contact Shrut if you need help.',
   };
 }
 

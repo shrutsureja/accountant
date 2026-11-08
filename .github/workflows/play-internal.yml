@@ -38,7 +38,7 @@ jobs:
         env:
           ACCOUNTANT_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ACCOUNTANT_UPLOAD_KEYSTORE_BASE64 }}
           ACCOUNTANT_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ACCOUNTANT_UPLOAD_KEYSTORE_PASSWORD }}
-          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_PLAY_CREDENTIALS_JSON: ${{ secrets.GOOGLE_PLAY_CREDENTIALS_JSON }}
         run: |
           python3 - <<'PY'
           import base64
@@ -50,7 +50,7 @@ jobs:
           values = {
               'accountant-release.p12': base64.b64decode(os.environ['ACCOUNTANT_UPLOAD_KEYSTORE_BASE64'], validate=True),
               'signing-password': os.environ['ACCOUNTANT_UPLOAD_KEYSTORE_PASSWORD'].encode(),
-              'google-play.json': os.environ['GOOGLE_PLAY_SERVICE_ACCOUNT_JSON'].encode(),
+              'google-play.json': os.environ['GOOGLE_PLAY_CREDENTIALS_JSON'].encode(),
           }
           for name, value in values.items():
               path = state / name

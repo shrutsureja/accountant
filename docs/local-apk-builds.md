@@ -18,13 +18,13 @@ Because Google uses a different app-signing key, a Play install cannot replace a
 
 `.github/workflows/play-internal.yml` runs only when started from **GitHub → Actions → Publish internal Play release → Run workflow**. Enter a display version and a version code larger than every version already uploaded to Play. It runs unit tests, builds the AAB against the production HTTPS API, checks that its upload certificate is `31:AD:…:84:11`, and submits it to the `internal` track. It does not publish a production release or deploy the backend. Play may still review a release.
 
-Enable the Google Play Developer API in a Google Cloud project. To publish using the existing Play Console admin account, configure an OAuth desktop client, authorize `shrutsureja.code@gmail.com` for the `https://www.googleapis.com/auth/androidpublisher` scope, and store its Application Default Credentials JSON privately. An OAuth consent app in external **Testing** status issues a refresh token that expires after seven days; unattended releases beyond that need an OAuth app in production status or a service account. Google also supports a separate service account, but it is not required for the workflow. Add these secrets to a GitHub environment named `google-play-internal`:
+Enable the Google Play Developer API in a Google Cloud project and grant the service account access to Accountant in Play Console with **View app information** and **Release apps to testing tracks** permissions. Add these secrets to the existing GitHub environment named `deployment`:
 
 - `ACCOUNTANT_UPLOAD_KEYSTORE_BASE64`: base64 encoding of the existing `accountant-release.p12` file (single line).
 - `ACCOUNTANT_UPLOAD_KEYSTORE_PASSWORD`: contents of the existing `signing-password` file.
-- `GOOGLE_PLAY_CREDENTIALS_JSON`: the OAuth authorized-user JSON credential (or a service-account JSON credential if that route is chosen later).
+- `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`: the service-account JSON credential.
 
-Restrict who can run the environment, and never commit these values. An authorized-user JSON includes a refresh token with the Play Console user's privileges. The values are restored into temporary files on the GitHub runner. The workflow publishes only after you manually start it; ordinary pushes run CI but do not create a Play release.
+Restrict who can run the environment, and never commit these values. The values are restored into temporary files on the GitHub runner. The workflow publishes only after you manually start it; ordinary pushes run CI but do not create a Play release.
 
 From the repository root, with Java 21 and the Android SDK configured:
 

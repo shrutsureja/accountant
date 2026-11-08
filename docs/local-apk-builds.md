@@ -1,18 +1,30 @@
 # Local family APK builds
 
-Builds stay on your PC. No GitHub Release, email delivery, or public APK hosting is configured.
+Local builds stay on your PC. No GitHub Release, email delivery, or public APK hosting is configured. A separate, manually triggered GitHub Actions workflow can publish a Play internal-testing bundle once its secrets are configured.
 
 ## Build
 
-For the first Google Play internal-testing release, build the signed App Bundle:
+For the next Google Play internal-testing release (version code 9 is already live), build a signed App Bundle with a new version code:
 
 ```sh
-python3 scripts/build_apk.py --version 1.1.8 --code 10 --api-url https://api.accountant.shrutsureja.com/ --bundle
+python3 scripts/build_apk.py --version 1.1.9 --code 11 --api-url https://api.accountant.shrutsureja.com/ --bundle
 ```
 
-The output is `dist/Accountant-1.1.8.aab`. The `10` is Android's internal, increasing version code; users see only `1.1.8`. Nothing is uploaded by the script. The first bundle, version code 9, was uploaded to the Play draft with the family key as its upload key. Before rolling out, provide the existing family app-signing key to Play and register the new upload certificate at `~/.config/accountant-build/accountant-play-upload-certificate.pem` through **Request upload key reset**. Only upload the code-10 bundle after Play shows the family app-signing certificate and confirms that it accepts the new upload certificate. The code-9 bundle cannot be reused after changing the app-signing key. Do not uninstall an existing installation to work around a signing mismatch.
+The output is `dist/Accountant-1.1.9.aab`. The `11` is Android's internal, increasing version code; users see only `1.1.9`. Nothing is uploaded by this script. Play signs delivered installs with Google's app-signing key (`0B:A8:…:59:20`) and accepts bundles signed by the existing upload key (`31:AD:…:84:11`). Both the local APK and Play bundle use `~/.config/accountant-build/accountant-release.p12`; the previously created `accountant-play-upload.p12` is unused. Back up the active keystore and `signing-password` privately. The Play build cannot automatically recreate a missing upload key.
 
-Family APKs continue to use `~/.config/accountant-build/accountant-release.p12`. Play bundles use `~/.config/accountant-build/accountant-play-upload.p12`. Back up both keystores and their password files privately. The `.pem` file is the public upload certificate; it is safe to provide to Play, but never upload either `.p12` file or a password as a plain attachment.
+Because Google uses a different app-signing key, a Play install cannot replace an old locally signed APK in place. Verify every phone has synced, then uninstall the local APK and install the Play version one phone at a time. Uninstalling removes local-only data and permission settings.
+
+## Automated internal Play releases
+
+`.github/workflows/play-internal.yml` runs only when started from **GitHub → Actions → Publish internal Play release → Run workflow**. Enter a display version and a version code larger than every version already uploaded to Play. It runs unit tests, builds the AAB against the production HTTPS API, checks that its upload certificate is `31:AD:…:84:11`, and submits it to the `internal` track. It does not publish a production release or deploy the backend. Play may still review a release.
+
+First configure a Google Cloud service account with the Google Play Developer API enabled. In **Play Console → Users and permissions**, invite that service-account email and grant the Accountant app permissions to view app information and release to testing tracks. Add these secrets to a GitHub environment named `google-play-internal`:
+
+- `ACCOUNTANT_UPLOAD_KEYSTORE_BASE64`: base64 encoding of the existing `accountant-release.p12` file (single line).
+- `ACCOUNTANT_UPLOAD_KEYSTORE_PASSWORD`: contents of the existing `signing-password` file.
+- `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`: the service account's JSON credential.
+
+Restrict who can run the environment, and never commit these values. The values are restored into temporary files on the GitHub runner. The workflow publishes only after you manually start it; ordinary pushes run CI but do not create a Play release.
 
 From the repository root, with Java 21 and the Android SDK configured:
 
@@ -24,7 +36,7 @@ The output is `dist/Accountant-1.1.5-build-7-release.apk`, plus a SHA-256 checks
 
 For the next update use a higher Android build code, for example `--version 1.1.4 --code 6`. The script remembers successful builds and rejects decreasing codes. Rebuilding the same version/code is allowed. The display version and build code appear on Login and Profile.
 
-On the first release build, the script creates a signing key and password under `~/.config/accountant-build/`, restricted to your user. Back up this whole folder privately and keep using it for every release. Do not commit it. `ACCOUNTANT_BUILD_HOME` can point to a restored signing folder. The script runs Android unit tests before packaging and never embeds the signing password in the APK.
+The original signing key and password are stored under `~/.config/accountant-build/`, restricted to your user. Back up this folder privately and keep using the same upload key for every Play release. Do not commit it. `ACCOUNTANT_BUILD_HOME` can point to a restored signing folder. The script refuses to create a replacement key if these files are missing, runs Android unit tests before packaging, and never embeds the signing password in the APK.
 
 Debug/local testing:
 
@@ -60,4 +72,4 @@ The signed-in app syncs while open and connected, then every minute until it goe
 
 Profile SMS scanning offers This month, Last month, and Two months ago using calendar-month boundaries and original transaction dates. Needs Review identifies the source member from the transaction creator, independently of the selected payer.
 
-90-day retention, Git history cleanup, and release CI are not included. Transaction history remains local.
+90-day retention and Git history cleanup are not included. Transaction history remains local.

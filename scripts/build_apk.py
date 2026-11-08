@@ -10,7 +10,6 @@ import json
 import os
 from pathlib import Path
 import re
-import secrets
 import shutil
 import subprocess
 from urllib.parse import urlparse
@@ -45,34 +44,17 @@ def main():
         parser.error('Increase --code for a new version. Older builds cannot update installed APKs.')
     env = os.environ.copy()
     if not args.debug:
-        key_file = state_dir / ('accountant-play-upload.p12' if args.bundle else 'accountant-release.p12')
-        password_file = state_dir / ('play-upload-password' if args.bundle else 'signing-password')
-        key_alias = 'accountant-play-upload' if args.bundle else 'accountant'
+        # Google Play currently trusts the existing family key as its upload key.
+        key_file = state_dir / 'accountant-release.p12'
+        password_file = state_dir / 'signing-password'
+        key_alias = 'accountant'
         if key_file.exists() != password_file.exists():
             parser.error('Signing key/password pair is incomplete. Restore your backup before building.')
         if not key_file.exists():
-            keytool = shutil.which('keytool')
-            if not keytool:
-                parser.error('Install a JDK and make keytool available first.')
-            password = secrets.token_urlsafe(36)
-            env['ACCOUNTANT_STORE_PASSWORD'] = password
-            try:
-                subprocess.run([keytool, '-genkeypair', '-keystore', str(key_file), '-storetype', 'PKCS12', '-storepass:env', 'ACCOUNTANT_STORE_PASSWORD', '-keypass:env', 'ACCOUNTANT_STORE_PASSWORD', '-alias', key_alias, '-keyalg', 'RSA', '-keysize', '3072', '-validity', '10000', '-dname', 'CN=Accountant Play Upload' if args.bundle else 'CN=Accountant Family', '-noprompt'], env=env, check=True)
-                with password_file.open('x') as handle:
-                    os.chmod(password_file, 0o600)
-                    handle.write(password)
-                os.chmod(key_file, 0o600)
-            except BaseException:
-                # Never silently replace a successfully created signing key.
-                raise
-            print(f'Created {"Play upload" if args.bundle else "family app-signing"} key files in {state_dir}. Back up this folder privately.', flush=True)
+            parser.error('Restore the existing Play upload key and signing password before building a release.')
         env['ACCOUNTANT_KEYSTORE'] = str(key_file.resolve())
         env['ACCOUNTANT_STORE_PASSWORD'] = password_file.read_text().strip()
         env['ACCOUNTANT_KEY_ALIAS'] = key_alias
-        if args.bundle:
-            certificate = state_dir / 'accountant-play-upload-certificate.pem'
-            subprocess.run([shutil.which('keytool') or 'keytool', '-exportcert', '-rfc', '-keystore', str(key_file), '-storetype', 'PKCS12', '-storepass:env', 'ACCOUNTANT_STORE_PASSWORD', '-alias', key_alias, '-file', str(certificate)], env=env, check=True)
-            os.chmod(certificate, 0o600)
     task = 'assembleDebug' if args.debug else ('bundleRelease' if args.bundle else 'assembleRelease')
     subprocess.run([str(root / 'android/gradlew'), ':app:testDebugUnitTest', f':app:{task}', f'-PAPP_VERSION_NAME={args.version}', f'-PAPP_VERSION_CODE={args.code}', f'-PAPI_BASE_URL={url}', '-PLOCAL_AUTH_BYPASS=false'], cwd=root / 'android', env=env, check=True)
     extension = 'aab' if args.bundle else 'apk'

@@ -1,0 +1,110 @@
+name: Publish internal Play release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Display version (for example 1.1.9)
+        required: true
+        type: string
+      code:
+        description: Android version code (must exceed every uploaded code)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: accountant-play-internal
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: google-play-internal
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      - uses: android-actions/setup-android@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+      - name: Restore upload credentials
+        env:
+          ACCOUNTANT_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ACCOUNTANT_UPLOAD_KEYSTORE_BASE64 }}
+          ACCOUNTANT_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ACCOUNTANT_UPLOAD_KEYSTORE_PASSWORD }}
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          python3 - <<'PY'
+          import base64
+          import os
+          from pathlib import Path
+
+          state = Path(os.environ['RUNNER_TEMP']) / 'accountant-build'
+          state.mkdir(mode=0o700)
+          values = {
+              'accountant-release.p12': base64.b64decode(os.environ['ACCOUNTANT_UPLOAD_KEYSTORE_BASE64'], validate=True),
+              'signing-password': os.environ['ACCOUNTANT_UPLOAD_KEYSTORE_PASSWORD'].encode(),
+              'google-play.json': os.environ['GOOGLE_PLAY_SERVICE_ACCOUNT_JSON'].encode(),
+          }
+          for name, value in values.items():
+              path = state / name
+              path.write_bytes(value)
+              path.chmod(0o600)
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              print(f'ACCOUNTANT_BUILD_HOME={state}', file=output)
+              print(f'GOOGLE_PLAY_JSON_KEY={state / "google-play.json"}', file=output)
+          PY
+      - name: Check Play upload certificate
+        env:
+          ACCOUNTANT_STORE_PASSWORD: ${{ secrets.ACCOUNTANT_UPLOAD_KEYSTORE_PASSWORD }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+          import subprocess
+          from pathlib import Path
+
+          key = Path(os.environ['ACCOUNTANT_BUILD_HOME']) / 'accountant-release.p12'
+          result = subprocess.run(
+              ['keytool', '-list', '-v', '-keystore', str(key), '-storetype', 'PKCS12',
+               '-storepass:env', 'ACCOUNTANT_STORE_PASSWORD', '-alias', 'accountant'],
+              capture_output=True, text=True, check=True,
+          )
+          match = re.search(r'SHA256:\s*([0-9A-F:]+)', result.stdout)
+          expected = '31:AD:99:6A:12:D6:4D:89:9B:58:D2:CF:B9:42:64:DF:79:9F:13:48:6A:4C:15:EF:8F:9F:61:E1:2C:D8:84:11'
+          if not match or match.group(1).upper() != expected:
+              raise SystemExit('The configured keystore does not match the Play upload certificate.')
+          print('Play upload certificate matches.')
+          PY
+      - name: Build signed app bundle
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_CODE: ${{ inputs.code }}
+        run: |
+          chmod +x android/gradlew
+          python3 scripts/build_apk.py \
+            --version "$RELEASE_VERSION" \
+            --code "$RELEASE_CODE" \
+            --api-url https://api.accountant.shrutsureja.com/ \
+            --bundle
+      - name: Publish to internal testers
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          gem install fastlane --no-document
+          fastlane supply \
+            --package_name com.shrutsureja.accountant \
+            --aab "dist/Accountant-$RELEASE_VERSION.aab" \
+            --track internal \
+            --release_status completed \
+            --json_key "$GOOGLE_PLAY_JSON_KEY" \
+            --skip_upload_metadata true \
+            --skip_upload_changelogs true \
+            --skip_upload_images true \
+            --skip_upload_screenshots true

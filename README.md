@@ -88,6 +88,6 @@ Use `python3 scripts/build_apk.py --version 1.1.6 --code 8 --api-url https://api
 
 See [local build and update instructions](docs/local-apk-builds.md) for signing-key backup, debug builds, parent login names, and optional/mandatory app updates.
 
-For Google Play internal testing, run `python3 scripts/build_apk.py --version 1.1.8 --code 10 --api-url https://api.accountant.shrutsureja.com/ --bundle`. This creates a signed, local `dist/Accountant-1.1.8.aab` using a separate Play upload key; it does not upload or publish it. Before rolling out the first Play release, configure Play App Signing with the existing family app-signing key so Play updates can replace installed release APKs without clearing data, and register the new upload-key certificate with Play.
+Google Play internal testing uses Google's app-signing key and the existing family key as its upload key. Version 1.1.8 (code 9) is the first internal release. Future bundles can be built locally with `python3 scripts/build_apk.py --version 1.1.9 --code 11 --api-url https://api.accountant.shrutsureja.com/ --bundle`, or published through the manually triggered [Play internal release workflow](docs/local-apk-builds.md#automated-internal-play-releases) after its service account and secrets are configured. A Play install needs a one-time reinstall over a locally signed APK; verify sync before uninstalling.
 
 Production configuration and private APK instructions: [Cloudflare deployment](docs/cloudflare-deployment.md).

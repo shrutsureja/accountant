@@ -17,6 +17,7 @@ import java.time.LocalTime
 import java.time.ZoneId
 import java.time.YearMonth
 import javax.inject.Inject
+import retrofit2.HttpException
 
 @HiltViewModel class SessionViewModel @Inject constructor(private val repository: AccountantRepository,private val store: AuthStore): ViewModel() {
     val hasSession=store.hasSession.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),false)
@@ -25,7 +26,21 @@ import javax.inject.Inject
     val biometricEnabled=store.biometricEnabled.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),true)
     private val _loginState=MutableStateFlow<LoginState>(LoginState.Idle); val loginState=_loginState.asStateFlow()
     init { viewModelScope.launch { repository.seedForOfflinePreview() } }
-    fun login(username:String,pin:String) { if(username.isBlank()||pin.length<4)return; viewModelScope.launch { _loginState.value=LoginState.Loading; _loginState.value=repository.login(username,pin,"${Build.MANUFACTURER} ${Build.MODEL}").fold({LoginState.Success},{LoginState.Error(it.message?:"Could not sign in")}) } }
+    fun login(username:String,pin:String) {
+        if (username.isBlank() || pin.length < 4) return
+        viewModelScope.launch {
+            _loginState.value = LoginState.Loading
+            _loginState.value = repository.login(username,pin,"${Build.MANUFACTURER} ${Build.MODEL}").fold(
+                { LoginState.Success },
+                { error -> LoginState.Error(when ((error as? HttpException)?.code()) {
+                    423 -> "Account locked after 10 incorrect PIN attempts. Contact Shrut to change your PIN."
+                    429 -> "Too many login requests. Try again in 15 minutes."
+                    401 -> "Username or PIN is incorrect"
+                    else -> error.message ?: "Could not sign in"
+                }) },
+            )
+        }
+    }
     fun logout()=viewModelScope.launch { repository.logout() }
     fun setBiometricEnabled(enabled:Boolean)=viewModelScope.launch { store.setBiometric(enabled) }
 }

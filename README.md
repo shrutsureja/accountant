@@ -23,7 +23,7 @@ Apply the local D1 schema before first use:
 npx wrangler d1 migrations apply accountant-db --local
 ```
 
-After all local migrations, development logins are `shrut`, `alpa`, and `hitesh`. The seed PIN is for local development only; production uses separate private credentials.
+After all local migrations, set a private local PIN with `python3 scripts/provision_local_pins.py` from the repository root. Development logins are `shrut`, `alpa`, and `hitesh`. The historical seed PIN is disabled by the latest migration; production uses separate private credentials. Never run the local provisioning script against production.
 
 ## Android
 

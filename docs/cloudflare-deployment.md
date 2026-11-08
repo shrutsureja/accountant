@@ -14,7 +14,9 @@ npx wrangler deploy --config wrangler.production.toml
 curl --fail https://api.accountant.shrutsureja.com/health
 ```
 
-`JWT_SECRET` is installed as a Worker secret, not a source-code variable. Production PINs differ from development seeds. Never rerun the initial data import against a populated production database: it would overwrite later edits.
+`JWT_SECRET` is installed as a Worker secret, not a source-code variable. Migration `0007_auth_hardening.sql` disables the published development PIN hash if it is still present. Production PINs must be provisioned privately. Never rerun the initial data import against a populated production database: it would overwrite later edits.
+
+Ten incorrect PINs within 15 minutes lock the account until its PIN is changed. Shrut can use the private, local reset tool to set a new PIN hash, clear that user's login lock, and revoke existing sessions. Keep the production reset tool and any PINs outside the public repository; the member signs in again afterward.
 
 ## Private APK
 

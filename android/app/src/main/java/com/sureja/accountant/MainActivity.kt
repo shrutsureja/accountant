@@ -29,6 +29,7 @@ import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.compose.*
@@ -87,14 +88,33 @@ class MainActivity : FragmentActivity() {
 
 @Composable
 private fun MainActivity.AccountantRoot(biometric:((()->Unit),(()->Unit))->Unit,session:SessionViewModel=hiltViewModel()) {
-    val hasSession by session.hasSession.collectAsState();val biometricEnabled by session.biometricEnabled.collectAsState();var unlocked by remember{mutableStateOf(false)}
+    val hasSession by session.hasSession.collectAsState()
+    val biometricEnabled by session.biometricEnabled.collectAsState()
+    var unlocked by remember { mutableStateOf(false) }
+    var foregroundGeneration by remember { mutableIntStateOf(0) }
     val foregroundSync: SyncViewModel = hiltViewModel()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(lifecycle, hasSession, biometricEnabled) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START -> foregroundGeneration++
+                Lifecycle.Event.ON_STOP -> if (hasSession && biometricEnabled && !(BuildConfig.DEBUG && BuildConfig.LOCAL_AUTH_BYPASS)) unlocked = false
+                else -> Unit
+            }
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
+    }
     AppUpdateGate(hasSession) {
         LaunchedEffect(hasSession, lifecycle) {
             if (hasSession) lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { foregroundSync.runWhileOpen() }
         }
-        LaunchedEffect(hasSession,biometricEnabled){if(!hasSession)unlocked=false else if(BuildConfig.DEBUG && BuildConfig.LOCAL_AUTH_BYPASS)unlocked=true else if(!biometricEnabled)unlocked=true else if(!unlocked)biometric({unlocked=true},{})}
+        LaunchedEffect(hasSession, biometricEnabled, foregroundGeneration) {
+            if (!hasSession) unlocked = false
+            else if (BuildConfig.DEBUG && BuildConfig.LOCAL_AUTH_BYPASS) unlocked = true
+            else if (!biometricEnabled) unlocked = true
+            else if (foregroundGeneration > 0 && !unlocked) biometric({ unlocked = true }, {})
+        }
         when { !hasSession -> LoginScreen(session);!unlocked -> LockedScreen({biometric({unlocked=true},{})},{session.logout()});else -> MainShell(session) }
     }
 }

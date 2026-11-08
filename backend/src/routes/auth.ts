@@ -5,6 +5,7 @@ import { createAccessToken, randomToken, sha256, verifyPin } from '../utils/cryp
 import { isResponse, nowIso, parseJson } from '../utils/http';
 import { loginSchema } from '../validators';
 import { requireAuth } from '../middleware/auth';
+import { accountLockedResponse, checkIpLoginRateLimit, clearWrongPins, isAccountLocked, recordWrongPin } from '../utils/login-rate-limit';
 
 export const authRoutes = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
@@ -15,8 +16,16 @@ function tokenTtl(c: { env: Bindings }): number {
 authRoutes.post('/login', async (c) => {
   const input = await parseJson(c, loginSchema);
   if (isResponse(input)) return input;
+  const limited = await checkIpLoginRateLimit(c);
+  if (limited) return limited;
   const user = await c.env.DB.prepare('SELECT * FROM users WHERE username = ? COLLATE NOCASE').bind(input.username).first<Record<string, string>>();
-  if (!user?.pin_hash || !(await verifyPin(input.pin, user.pin_hash))) return c.json({ error: 'Username or PIN is incorrect' }, 401);
+  if (!user?.id || !user.pin_hash) return c.json({ error: 'Username or PIN is incorrect' }, 401);
+  if (await isAccountLocked(c, user.id)) return accountLockedResponse(c);
+  if (!(await verifyPin(input.pin, user.pin_hash))) {
+    if (await recordWrongPin(c, user.id)) return accountLockedResponse(c);
+    return c.json({ error: 'Username or PIN is incorrect' }, 401);
+  }
+  await clearWrongPins(c, user.id);
 
   const refreshToken = randomToken();
   const timestamp = nowIso();

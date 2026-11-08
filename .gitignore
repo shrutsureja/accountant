@@ -13,5 +13,6 @@ android/app/google-services.json
 .DS_Store
 
 dist/
+scripts/reset_account_pin.py
 __pycache__/
 *.p12

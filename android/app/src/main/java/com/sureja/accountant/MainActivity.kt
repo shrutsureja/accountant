@@ -162,7 +162,7 @@ private fun MainActivity.MainShell(session:SessionViewModel) {
         }
     }) { contentPadding ->
         NavHost(nav, "home", Modifier.padding(contentPadding)) {
-            composable("home") { HomeScreen({ nav.navigate("add") }, { nav.navigate("review") }, { nav.navigate("transactions") }, { nav.navigate("reports") }, onCategory = { openFilteredTransactions("category", it) }, onPerson = { openFilteredTransactions("person", it) }) }
+            composable("home") { HomeScreen({ nav.navigate("add") }, { nav.navigate("review") }, { nav.navigate("transactions") }, { nav.navigate("reports") }, onScanSms = { month -> scanMonth = month.toString(); smsPermission.launch(Manifest.permission.READ_SMS) }, onCategory = { openFilteredTransactions("category", it) }, onPerson = { openFilteredTransactions("person", it) }) }
             composable("transactions") { TransactionsScreen() }
             composable("transactions/filter/{kind}/{id}", arguments = listOf(navArgument("kind") { type = NavType.StringType }, navArgument("id") { type = NavType.StringType })) { entry ->
                 TransactionsScreen(initialCategoryId = entry.arguments?.getString("id")?.takeIf { entry.arguments?.getString("kind") == "category" }, initialPersonId = entry.arguments?.getString("id")?.takeIf { entry.arguments?.getString("kind") == "person" })
@@ -179,7 +179,6 @@ private fun MainActivity.MainShell(session:SessionViewModel) {
                     onSync = { SyncWorker.now(activity); Toast.makeText(activity, "Sync scheduled", Toast.LENGTH_SHORT).show() },
                     onExport = activity::exportCsv,
                     onExportPdf = activity::exportPdf,
-                    onScanSms = { month -> scanMonth = month.toString(); smsPermission.launch(Manifest.permission.READ_SMS) },
                     onEnableLiveSms = { liveSmsPermission.launch(Manifest.permission.RECEIVE_SMS) },
                     onNotificationAccess = { activity.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) },
                     onBackgroundAutostart = {

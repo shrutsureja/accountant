@@ -6,8 +6,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Sync
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Sms
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.NotificationsNone
@@ -24,15 +24,18 @@ import com.sureja.accountant.ui.theme.AccountantSpacing
 import java.time.LocalTime
 import java.time.YearMonth
 import java.time.format.TextStyle
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.abs
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onAdd: () -> Unit,
     onReview: () -> Unit,
     onTransactions: () -> Unit,
     onReports: () -> Unit,
+    onScanSms: (YearMonth) -> Unit,
     onCategory: (String) -> Unit,
     onPerson: (String) -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
@@ -40,7 +43,7 @@ fun HomeScreen(
     val state by viewModel.state.collectAsState()
     val month by viewModel.selectedMonth.collectAsState()
     val name by viewModel.profileName.collectAsState()
-    val syncState by viewModel.syncState.collectAsState()
+    var showScanMonths by remember { mutableStateOf(false) }
     val currentMonth = month == YearMonth.now()
 
     LazyColumn(
@@ -55,14 +58,12 @@ fun HomeScreen(
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.titleMedium,
                 )
-                TextButton(onClick = viewModel::syncNow, enabled = !syncState.running) {
-                    if (syncState.running) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                    else Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(18.dp))
+                TextButton(onClick = { showScanMonths = true }) {
+                    Icon(Icons.Default.Sms, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text(if (syncState.running) "Syncing…" else "Sync")
+                    Text("Scan")
                 }
             }
-            syncState.error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = AccountantColors.SecondaryText) }
             HomeMonthSelector(month, viewModel::previousMonth, viewModel::nextMonth)
             Text("${month.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} spending", style = MaterialTheme.typography.bodyMedium, color = AccountantColors.SecondaryText)
             MoneyText(state.total, Modifier.padding(top = AccountantSpacing.xs), fontSize = 40)
@@ -90,6 +91,37 @@ fun HomeScreen(
             item { SectionTitle("Recent expenses", onTransactions, "See all") }
             if (state.recent.isEmpty()) item { Text("No recent expenses yet", style = MaterialTheme.typography.bodySmall, color = AccountantColors.SecondaryText) }
             else items(state.recent.take(4), key = { it.id }) { TransactionRow(it, onTransactions) }
+    }
+    if (showScanMonths) {
+        ModalBottomSheet(onDismissRequest = { showScanMonths = false }, containerColor = AccountantColors.Surface) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = AccountantSpacing.page, vertical = AccountantSpacing.md)) {
+                Text("Scan messages by month", style = MaterialTheme.typography.titleLarge)
+                Text("Detected expenses keep their original dates and appear in Needs review.", style = MaterialTheme.typography.bodyMedium, color = AccountantColors.SecondaryText)
+                Spacer(Modifier.height(AccountantSpacing.md))
+                listOf("This month", "Last month", "Two months ago").forEachIndexed { index, label ->
+                    val scanMonth = YearMonth.now().minusMonths(index.toLong())
+                    ScanMonthRow(label, scanMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy"))) {
+                        showScanMonths = false
+                        onScanSms(scanMonth)
+                    }
+                }
+                Spacer(Modifier.height(AccountantSpacing.lg))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ScanMonthRow(label: String, month: String, onClick: () -> Unit) {
+    Surface(onClick = onClick, color = androidx.compose.ui.graphics.Color.Transparent) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 56.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = AccountantColors.SecondaryText)
+            Column(Modifier.weight(1f).padding(horizontal = AccountantSpacing.base)) {
+                Text(label, style = MaterialTheme.typography.bodyLarge)
+                Text(month, style = MaterialTheme.typography.bodySmall, color = AccountantColors.SecondaryText)
+            }
+            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = AccountantColors.SecondaryText)
+        }
     }
 }
 

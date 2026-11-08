@@ -27,8 +27,6 @@ import androidx.core.content.ContextCompat
 import com.sureja.accountant.capture.TransactionNotificationService
 import com.sureja.accountant.ui.theme.AccountantColors
 import com.sureja.accountant.ui.theme.AccountantSpacing
-import java.time.YearMonth
-import java.time.format.DateTimeFormatter
 import java.time.Duration
 import java.time.OffsetDateTime
 
@@ -42,7 +40,6 @@ fun ProfileScreen(
     onSync: () -> Unit,
     onExport: () -> Unit,
     onExportPdf: () -> Unit,
-    onScanSms: (YearMonth) -> Unit,
     onEnableLiveSms: () -> Unit,
     onNotificationAccess: () -> Unit,
     onBackgroundAutostart: () -> Unit,
@@ -50,7 +47,6 @@ fun ProfileScreen(
     onCategories: () -> Unit,
     onAccounts: () -> Unit,
 ) {
-    var showScanMonths by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var notificationEnabled by remember { mutableStateOf(NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)) }
@@ -89,7 +85,6 @@ fun ProfileScreen(
         item { Text("Version ${com.sureja.accountant.BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodySmall, color = AccountantColors.SecondaryText) }
         item { ProfileSection("DATA & SYNC") }
         item { ProfileSettingRow(Icons.Default.Sync, "Sync now", syncSubtitle(lastSyncAt), onSync) }
-        item { ProfileSettingRow(Icons.Default.Sms, "Scan messages", "Choose a month", { showScanMonths = true }) }
         item { ProfileSettingRow(Icons.Default.Download, "Export CSV", null, onExport) }
         item { ProfileSettingRow(Icons.Default.PictureAsPdf, "Export PDF summary", "Monthly totals by person and category", onExportPdf) }
         item { ProfileSection("AUTOMATION") }
@@ -124,23 +119,6 @@ fun ProfileScreen(
         item {
             HorizontalDivider(Modifier.padding(vertical = AccountantSpacing.base), color = AccountantColors.Border)
             ProfileSettingRow(Icons.Default.Logout, "Log out", null, onLogout, AccountantColors.Danger)
-        }
-    }
-    if (showScanMonths) {
-        ModalBottomSheet(onDismissRequest = { showScanMonths = false }, containerColor = AccountantColors.Surface) {
-            Column(Modifier.fillMaxWidth().padding(horizontal = AccountantSpacing.page, vertical = AccountantSpacing.md)) {
-                Text("Scan messages by month", style = MaterialTheme.typography.titleLarge)
-                Text("Detected expenses keep their original dates and appear in Needs review.", style = MaterialTheme.typography.bodyMedium, color = AccountantColors.SecondaryText)
-                Spacer(Modifier.height(AccountantSpacing.md))
-                listOf("This month", "Last month", "Two months ago").forEachIndexed { index, label ->
-                    val month = YearMonth.now().minusMonths(index.toLong())
-                    ProfileSettingRow(Icons.Default.CalendarMonth, label, month.format(DateTimeFormatter.ofPattern("MMMM yyyy")), {
-                        showScanMonths = false
-                        onScanSms(month)
-                    })
-                }
-                Spacer(Modifier.height(AccountantSpacing.lg))
-            }
         }
     }
 }

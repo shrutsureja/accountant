@@ -114,8 +114,8 @@ fun ProfileScreen(
                 Row(Modifier.fillMaxWidth().heightIn(min = 60.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Fingerprint, contentDescription = null, tint = AccountantColors.SecondaryText)
                     Column(Modifier.weight(1f).padding(horizontal = AccountantSpacing.base)) {
-                        Text("Biometric lock", style = MaterialTheme.typography.bodyLarge)
-                        Text(if (biometricEnabled) "On" else "Off", style = MaterialTheme.typography.bodySmall, color = AccountantColors.SecondaryText)
+                        Text("App lock", style = MaterialTheme.typography.bodyLarge)
+                        Text(if (biometricEnabled) "Fingerprint or phone screen lock" else "Off", style = MaterialTheme.typography.bodySmall, color = AccountantColors.SecondaryText)
                     }
                     Switch(checked = biometricEnabled, onCheckedChange = null)
                 }

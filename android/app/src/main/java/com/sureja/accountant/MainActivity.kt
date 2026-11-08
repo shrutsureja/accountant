@@ -1,6 +1,7 @@
 package com.sureja.accountant
 
 import android.Manifest
+import android.app.KeyguardManager
 import android.content.Intent
 import android.content.ComponentName
 import android.provider.Settings
@@ -15,6 +16,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.biometric.BiometricPrompt
+import androidx.biometric.BiometricManager
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -59,8 +61,24 @@ class MainActivity : FragmentActivity() {
         }
     }
     private fun requestBiometric(onSuccess:()->Unit,onUnavailable:()->Unit) {
-        val prompt=BiometricPrompt(this,mainExecutor,object:BiometricPrompt.AuthenticationCallback(){override fun onAuthenticationSucceeded(result:BiometricPrompt.AuthenticationResult){onSuccess()};override fun onAuthenticationError(code:Int,message:CharSequence){if(code==BiometricPrompt.ERROR_NO_BIOMETRICS||code==BiometricPrompt.ERROR_HW_NOT_PRESENT)onUnavailable()}})
-        prompt.authenticate(BiometricPrompt.PromptInfo.Builder().setTitle("Unlock Accountant").setSubtitle("Use your fingerprint to continue").setNegativeButtonText("Use PIN").build())
+        val hasDeviceLock = getSystemService(KeyguardManager::class.java).isDeviceSecure
+        val authenticators = BiometricManager.Authenticators.BIOMETRIC_WEAK or
+            (if (hasDeviceLock) BiometricManager.Authenticators.DEVICE_CREDENTIAL else 0)
+        val builder = BiometricPrompt.PromptInfo.Builder()
+            .setTitle("Unlock Accountant")
+            .setSubtitle(if (hasDeviceLock) "Use your fingerprint or phone screen lock" else "Use your fingerprint")
+            .setAllowedAuthenticators(authenticators)
+        if (!hasDeviceLock) builder.setNegativeButtonText("Cancel")
+        val prompt = BiometricPrompt(this, mainExecutor, object : BiometricPrompt.AuthenticationCallback() {
+            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) = onSuccess()
+            override fun onAuthenticationError(code: Int, message: CharSequence) {
+                if (code == BiometricPrompt.ERROR_NO_BIOMETRICS ||
+                    code == BiometricPrompt.ERROR_HW_NOT_PRESENT ||
+                    code == BiometricPrompt.ERROR_NO_DEVICE_CREDENTIAL
+                ) onUnavailable()
+            }
+        })
+        prompt.authenticate(builder.build())
     }
     fun exportCsv(){lifecycleScope.launch{runCatching{exporter.share(repository.exportTransactions())}.onFailure{Toast.makeText(this@MainActivity,"Could not export expenses",Toast.LENGTH_SHORT).show()}}}
     fun exportPdf(){lifecycleScope.launch{runCatching{pdfExporter.share(repository.exportTransactions())}.onFailure{Toast.makeText(this@MainActivity,"Could not export PDF summary",Toast.LENGTH_SHORT).show()}}}

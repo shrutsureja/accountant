@@ -9,7 +9,7 @@ import java.util.Locale
 
 /** Reconcile two capture channels without merging unrelated payments of the same amount. */
 object DetectedTransactionMatcher {
-    private const val MAX_SECONDS_APART = 120L
+    private const val MAX_SECONDS_APART = 300L
 
     fun isSamePayment(
         incoming: ParsedTransaction,

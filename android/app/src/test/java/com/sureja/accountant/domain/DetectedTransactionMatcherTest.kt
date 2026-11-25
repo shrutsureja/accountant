@@ -29,7 +29,8 @@ class DetectedTransactionMatcherTest {
         val incoming=ParsedTransaction(14000,"SHOP NAME LIMITED","2307","UPI")
         assertFalse(DetectedTransactionMatcher.isSamePayment(incoming,TransactionSource.NOTIFICATION,at.plusSeconds(5),sms,"9999"))
         assertFalse(DetectedTransactionMatcher.isSamePayment(incoming.copy(merchant="OTHER"),TransactionSource.NOTIFICATION,at.plusSeconds(5),sms,"2307"))
-        assertFalse(DetectedTransactionMatcher.isSamePayment(incoming,TransactionSource.NOTIFICATION,at.plusSeconds(121),sms,"2307"))
+        assertTrue(DetectedTransactionMatcher.isSamePayment(incoming,TransactionSource.NOTIFICATION,at.plusSeconds(121),sms,"2307"))
+        assertFalse(DetectedTransactionMatcher.isSamePayment(incoming,TransactionSource.NOTIFICATION,at.plusSeconds(301),sms,"2307"))
         assertFalse(DetectedTransactionMatcher.isSamePayment(incoming,TransactionSource.SMS,at.plusSeconds(5),sms,"2307"))
     }
 

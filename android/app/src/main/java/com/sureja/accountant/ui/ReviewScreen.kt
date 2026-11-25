@@ -5,6 +5,7 @@ package com.sureja.accountant.ui
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -27,9 +28,11 @@ import com.sureja.accountant.data.local.*
 import com.sureja.accountant.ui.theme.AccountantColors
 import com.sureja.accountant.ui.theme.AccountantSpacing
 import java.time.OffsetDateTime
+import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 
 private enum class ReviewSelector { CATEGORY, PERSON, ACCOUNT }
+private enum class ReviewFilterSelector { PERSON, MONTH }
 
 private data class ReviewDraft(
     val item: TransactionListItem,
@@ -54,6 +57,7 @@ private data class ReviewDraft(
 fun ReviewScreen(onBack: () -> Unit, viewModel: ReviewViewModel = hiltViewModel(), catalog: CatalogViewModel = hiltViewModel()) {
     val transactions by viewModel.items.collectAsState()
     val ignoredTransactions by viewModel.ignoredItems.collectAsState()
+    val confirmedTransactions by viewModel.confirmedItems.collectAsState()
     val categories by catalog.categories.collectAsState()
     val categoryUsage by catalog.categoryUsage.collectAsState()
     val members by catalog.members.collectAsState()
@@ -61,7 +65,18 @@ fun ReviewScreen(onBack: () -> Unit, viewModel: ReviewViewModel = hiltViewModel(
     var draft by remember { mutableStateOf<ReviewDraft?>(null) }
     var selector by remember { mutableStateOf<ReviewSelector?>(null) }
     var showIgnored by remember { mutableStateOf(false) }
-    val visibleTransactions = if (showIgnored) ignoredTransactions else transactions
+    var filterMember by remember { mutableStateOf<String?>(null) }
+    var filterMonth by remember { mutableStateOf<YearMonth?>(null) }
+    var filterSource by remember { mutableStateOf<TransactionSource?>(null) }
+    var filterSelector by remember { mutableStateOf<ReviewFilterSelector?>(null) }
+    val allVisible = if (showIgnored) ignoredTransactions else transactions
+    val visibleTransactions = allVisible.filter { item ->
+        (filterMember == null || item.createdByUserId == filterMember) &&
+            (filterMonth == null || runCatching { YearMonth.from(OffsetDateTime.parse(item.occurredAt)) }.getOrNull() == filterMonth) &&
+            (filterSource == null || item.source == filterSource)
+    }
+    val possibleDuplicates = remember(transactions) { possibleReviewDuplicates(transactions) }
+    val merchantCategories = remember(confirmedTransactions) { previousMerchantCategories(confirmedTransactions) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -78,9 +93,19 @@ fun ReviewScreen(onBack: () -> Unit, viewModel: ReviewViewModel = hiltViewModel(
                 FilterChip(selected = !showIgnored, onClick = { showIgnored = false }, label = { Text("Needs review (${transactions.size})") })
                 FilterChip(selected = showIgnored, onClick = { showIgnored = true }, label = { Text("Ignored (${ignoredTransactions.size})") })
             }
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = AccountantSpacing.page),
+                horizontalArrangement = Arrangement.spacedBy(AccountantSpacing.sm),
+            ) {
+                FilterChip(selected = filterMember != null, onClick = { filterSelector = ReviewFilterSelector.PERSON }, label = { Text(members.firstOrNull { it.id == filterMember }?.displayName ?: "Person") })
+                FilterChip(selected = filterMonth != null, onClick = { filterSelector = ReviewFilterSelector.MONTH }, label = { Text(filterMonth?.format(DateTimeFormatter.ofPattern("MMM yyyy")) ?: "Month") })
+                FilterChip(selected = filterSource == TransactionSource.SMS, onClick = { filterSource = if (filterSource == TransactionSource.SMS) null else TransactionSource.SMS }, label = { Text("SMS") })
+                FilterChip(selected = filterSource == TransactionSource.NOTIFICATION, onClick = { filterSource = if (filterSource == TransactionSource.NOTIFICATION) null else TransactionSource.NOTIFICATION }, label = { Text("Notifications") })
+            }
             if (visibleTransactions.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    if (showIgnored) EmptyState("No ignored expenses", "Expenses you ignore will appear here.")
+                    if (allVisible.isNotEmpty()) EmptyState("No matching expenses", "Change the person, month, or source filter.")
+                    else if (showIgnored) EmptyState("No ignored expenses", "Expenses you ignore will appear here.")
                     else EmptyState("Nothing to review", "All detected transactions are reviewed.")
                 }
             } else {
@@ -90,9 +115,13 @@ fun ReviewScreen(onBack: () -> Unit, viewModel: ReviewViewModel = hiltViewModel(
                     verticalArrangement = Arrangement.spacedBy(AccountantSpacing.md),
                 ) {
                     items(visibleTransactions, key = { it.id }) { item ->
+                        val suggestedCategoryId = merchantKey(item.merchant)?.let(merchantCategories::get)
+                            ?.takeIf { id -> categories.any { it.id == id } }
                         ReviewTransactionCard(
                             item = item,
                             sourceMemberName = members.firstOrNull { it.id == item.createdByUserId }?.displayName,
+                            possibleDuplicates = if (showIgnored) emptyList() else possibleDuplicates[item.id].orEmpty(),
+                            suggestedCategoryName = if (item.categoryId == null) categories.firstOrNull { it.id == suggestedCategoryId }?.name else null,
                             ignored = showIgnored,
                             onIgnore = { viewModel.ignore(item.id) },
                             onRestore = { viewModel.restore(item.id) },
@@ -108,11 +137,38 @@ fun ReviewScreen(onBack: () -> Unit, viewModel: ReviewViewModel = hiltViewModel(
         }
     }
 
+    filterSelector?.let { kind ->
+        val options = if (kind == ReviewFilterSelector.PERSON) {
+            listOf(null to "All people") + members.map { it.id to it.displayName }
+        } else {
+            listOf(null to "All months") + (transactions + ignoredTransactions)
+                .mapNotNull { runCatching { YearMonth.from(OffsetDateTime.parse(it.occurredAt)) }.getOrNull() }
+                .distinct().sortedDescending().map { it.toString() to it.format(DateTimeFormatter.ofPattern("MMMM yyyy")) }
+        }
+        ModalBottomSheet(onDismissRequest = { filterSelector = null }, containerColor = AccountantColors.Surface) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = AccountantSpacing.page)) {
+                Text(if (kind == ReviewFilterSelector.PERSON) "Filter by person" else "Filter by month", style = MaterialTheme.typography.titleLarge)
+                Spacer(Modifier.height(AccountantSpacing.md))
+                LazyColumn(Modifier.heightIn(max = 440.dp), contentPadding = PaddingValues(bottom = AccountantSpacing.lg)) {
+                    items(options) { (id, label) ->
+                        Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).clickable {
+                            if (kind == ReviewFilterSelector.PERSON) filterMember = id else filterMonth = id?.let(YearMonth::parse)
+                            filterSelector = null
+                        }, verticalAlignment = Alignment.CenterVertically) { Text(label, style = MaterialTheme.typography.bodyLarge) }
+                        HorizontalDivider(color = AccountantColors.Border)
+                    }
+                }
+            }
+        }
+    }
+
     draft?.let { current ->
         if (selector == null) {
             ReviewEditSheet(
                 draft = current,
                 categories = categories,
+                suggestedCategory = merchantKey(current.merchant)?.let(merchantCategories::get)
+                    ?.let { id -> categories.firstOrNull { it.id == id } },
                 members = members,
                 accounts = accounts,
                 onChange = { draft = it },
@@ -168,7 +224,7 @@ fun ReviewScreen(onBack: () -> Unit, viewModel: ReviewViewModel = hiltViewModel(
 }
 
 @Composable
-private fun ReviewTransactionCard(item: TransactionListItem, sourceMemberName: String?, ignored: Boolean, onIgnore: () -> Unit, onRestore: () -> Unit, onEdit: () -> Unit, onConfirm: () -> Unit) {
+private fun ReviewTransactionCard(item: TransactionListItem, sourceMemberName: String?, possibleDuplicates: List<TransactionListItem>, suggestedCategoryName: String?, ignored: Boolean, onIgnore: () -> Unit, onRestore: () -> Unit, onEdit: () -> Unit, onConfirm: () -> Unit) {
     Surface(color = AccountantColors.Surface, shape = MaterialTheme.shapes.medium, border = BorderStroke(1.dp, AccountantColors.Border)) {
         Column(Modifier.fillMaxWidth().padding(AccountantSpacing.base), verticalArrangement = Arrangement.spacedBy(AccountantSpacing.xs)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(AccountantSpacing.md)) {
@@ -186,6 +242,15 @@ private fun ReviewTransactionCard(item: TransactionListItem, sourceMemberName: S
             val date = runCatching { OffsetDateTime.parse(item.occurredAt).format(DateTimeFormatter.ofPattern("d MMM · h:mm a")) }.getOrDefault(item.occurredAt.take(16))
             Text(listOfNotNull(if (item.source == TransactionSource.NOTIFICATION) "Notification" else "SMS", if (item.paymentMethod == PaymentMethod.UPI) "UPI" else item.paymentMethod.name.lowercase().replaceFirstChar(Char::uppercase), date, item.accountName).joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = AccountantColors.SecondaryText)
             Text("Category: ${item.categoryName ?: "Not categorized"}", style = MaterialTheme.typography.bodySmall, color = AccountantColors.SecondaryText)
+            if (suggestedCategoryName != null) Text("Previously used category: $suggestedCategoryName", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+            if (possibleDuplicates.isNotEmpty()) {
+                Text("Possible duplicate · Check before confirming", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
+                possibleDuplicates.take(2).forEach { related ->
+                    val relatedTime = runCatching { OffsetDateTime.parse(related.occurredAt).format(DateTimeFormatter.ofPattern("d MMM · h:mm a")) }.getOrDefault(related.occurredAt.take(16))
+                    val relatedSource = if (related.source == TransactionSource.NOTIFICATION) "Notification" else "SMS"
+                    Text("Also detected: $relatedSource · $relatedTime", style = MaterialTheme.typography.bodySmall, color = AccountantColors.SecondaryText)
+                }
+            }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
                 if (ignored) TextButton(onRestore) { Text("Restore") }
                 else TextButton(onIgnore) { Text("Ignore", color = AccountantColors.SecondaryText) }
@@ -200,6 +265,7 @@ private fun ReviewTransactionCard(item: TransactionListItem, sourceMemberName: S
 private fun ReviewEditSheet(
     draft: ReviewDraft,
     categories: List<CategoryEntity>,
+    suggestedCategory: CategoryEntity?,
     members: List<MemberEntity>,
     accounts: List<AccountEntity>,
     onChange: (ReviewDraft) -> Unit,
@@ -222,6 +288,9 @@ private fun ReviewEditSheet(
             )
             if (draft.categoryId == null) ReviewEditSelector("Category", "Not categorized · Choose category", highlighted = true) { onSelect(ReviewSelector.CATEGORY) }
             else ReviewEditSelector("Category", categories.firstOrNull { it.id == draft.categoryId }?.name ?: "Choose category") { onSelect(ReviewSelector.CATEGORY) }
+            if (draft.categoryId == null && suggestedCategory != null) {
+                TextButton(onClick = { onChange(draft.copy(categoryId = suggestedCategory.id)) }) { Text("Use previous category: ${suggestedCategory.name}") }
+            }
             ReviewEditSelector("Paid by", members.firstOrNull { it.id == draft.memberId }?.displayName ?: "Choose person") { onSelect(ReviewSelector.PERSON) }
             Row(horizontalArrangement = Arrangement.spacedBy(AccountantSpacing.sm)) {
                 PaymentMethod.entries.forEach { method ->
